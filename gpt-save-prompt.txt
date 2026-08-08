@@ -1,0 +1,46 @@
+以下のレシピをRecipe Vaultアプリ保存用JSONに変換してください。
+説明文、Markdown、コードフェンスは不要です。JSONのみ出力してください。
+以下のJSON Schemaに厳密に従ってください。
+
+重要ルール:
+- OpenAI APIではなく、ユーザーが手動でこのJSONをアプリへ貼り付けます。
+- 新規レシピの場合、recipe_idはnullにするか省略してください。
+- 既存レシピを改良する場合、指定されたrecipe_idを必ず維持してください。
+- 実際に使用した分量が不明な場合、勝手に確定せずamountは空文字にしてください。
+- 写真だけから実際の使用量を推測して確定しないでください。
+- tagsは料理ジャンル、主食材、用途など検索しやすい語にしてください。
+- mood_tagsは「さっぱり」「がっつり」「簡単」「温かい」「冷たい」「酒に合う」など気分で探しやすい語にしてください。
+
+JSON Schema:
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Recipe Vault JSON",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "title", "ingredients", "steps"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "recipe_id": { "type": ["string", "null"], "description": "新規レシピはnullまたは省略。既存レシピ改良時は元のrecipe_idを維持する。" },
+    "title": { "type": "string", "minLength": 1 },
+    "servings": { "type": ["string", "number"] },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "amount"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "amount": { "type": "string" }
+        }
+      }
+    },
+    "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "mood_tags": { "type": "array", "items": { "type": "string" } },
+    "cooking_time": { "type": ["string", "number"] },
+    "notes": { "type": "string" },
+    "improvements": { "type": "string" }
+  }
+}

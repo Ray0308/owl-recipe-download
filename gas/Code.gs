@@ -37,17 +37,31 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const wantsPostMessage = e && e.parameter && e.parameter.response_mode === "postMessage";
+  const requestToken = e && e.parameter ? String(e.parameter.request_token || "") : "";
+
   try {
-    const payload = JSON.parse((e.postData && e.postData.contents) || "{}");
+    const payload = parsePostPayload(e);
+    let result = { ok: false, error: "Unknown action." };
 
     if (payload.action === "saveRecipe") {
-      return jsonResponse(Object.assign({ ok: true }, saveRecipe(payload.recipe, payload.photo)));
+      result = Object.assign({ ok: true }, saveRecipe(payload.recipe, payload.photo));
     }
 
-    return jsonResponse({ ok: false, error: "Unknown action." });
+    if (wantsPostMessage) return postMessageResponse(result, requestToken);
+    return jsonResponse(result);
   } catch (err) {
-    return jsonResponse({ ok: false, error: String(err.message || err) });
+    const result = { ok: false, error: String(err.message || err) };
+    if (wantsPostMessage) return postMessageResponse(result, requestToken);
+    return jsonResponse(result);
   }
+}
+
+function parsePostPayload(e) {
+  if (e && e.parameter && e.parameter.payload) {
+    return JSON.parse(e.parameter.payload);
+  }
+  return JSON.parse((e.postData && e.postData.contents) || "{}");
 }
 
 function saveRecipe(inputRecipe, photo) {
@@ -403,4 +417,24 @@ function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function postMessageResponse(payload, requestToken) {
+  const message = {
+    source: "recipe-vault-gas",
+    request_token: requestToken,
+    payload: payload
+  };
+  const html = [
+    "<!doctype html>",
+    "<html><head><meta charset=\"utf-8\"></head><body>",
+    "<script>",
+    "window.parent.postMessage(" + JSON.stringify(message) + ", '*');",
+    "</script>",
+    "</body></html>"
+  ].join("");
+
+  return HtmlService
+    .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

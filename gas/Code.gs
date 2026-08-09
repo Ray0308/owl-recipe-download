@@ -18,7 +18,7 @@ const HEADERS = [
 
 function doGet(e) {
   try {
-    const action = String(e.parameter.action || "");
+    const action = String((e && e.parameter && e.parameter.action) || "");
 
     if (action === "listRecipes") {
       return jsonResponse({ ok: true, items: listLatestRecipes() });
@@ -37,8 +37,9 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const wantsPostMessage = e && e.parameter && e.parameter.response_mode === "postMessage";
-  const requestToken = e && e.parameter ? String(e.parameter.request_token || "") : "";
+  const responseMode = String((e && e.parameter && e.parameter.response_mode) || "");
+  const requestToken = String((e && e.parameter && e.parameter.request_token) || "");
+  const returnUrl = String((e && e.parameter && e.parameter.return_url) || "");
 
   try {
     const payload = parsePostPayload(e);
@@ -48,11 +49,13 @@ function doPost(e) {
       result = Object.assign({ ok: true }, saveRecipe(payload.recipe, payload.photo));
     }
 
-    if (wantsPostMessage) return postMessageResponse(result, requestToken);
+    if (responseMode === "htmlRedirect") return redirectResponse(result, returnUrl);
+    if (responseMode === "postMessage") return postMessageResponse(result, requestToken);
     return jsonResponse(result);
   } catch (err) {
     const result = { ok: false, error: String(err.message || err) };
-    if (wantsPostMessage) return postMessageResponse(result, requestToken);
+    if (responseMode === "htmlRedirect") return redirectResponse(result, returnUrl);
+    if (responseMode === "postMessage") return postMessageResponse(result, requestToken);
     return jsonResponse(result);
   }
 }
@@ -61,7 +64,7 @@ function parsePostPayload(e) {
   if (e && e.parameter && e.parameter.payload) {
     return JSON.parse(e.parameter.payload);
   }
-  return JSON.parse((e.postData && e.postData.contents) || "{}");
+  return JSON.parse((e && e.postData && e.postData.contents) || "{}");
 }
 
 function saveRecipe(inputRecipe, photo) {
@@ -317,7 +320,7 @@ function validateRecipe(recipe) {
 
   if (!("schema_version" in recipe)) errors.push("schema_versionがありません。");
   if (recipe.schema_version !== SCHEMA_VERSION) errors.push("schema_versionは" + SCHEMA_VERSION + "である必要があります。");
-  if (recipe.recipe_id !== null && recipe.recipe_id !== undefined && recipe.recipe_id !== "" && typeof recipe.recipe_id !== "string") errors.push("recipe_idは文字列、null、または省略である必要があります。");
+  if (recipe.recipe_id !== null && recipe.recipe_id !== undefined && recipe.recipe_id !== "" && typeof recipe.recipe_id !== "string") errors.push("recipe_idは文字列、null、または空である必要があります。");
   if (typeof recipe.title !== "string" || !recipe.title.trim()) errors.push("titleは空でない文字列である必要があります。");
   if (!Array.isArray(recipe.ingredients)) errors.push("ingredientsが配列ではありません。");
   if (!Array.isArray(recipe.steps)) errors.push("stepsが配列ではありません。");
@@ -419,6 +422,48 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function redirectResponse(result, returnUrl) {
+  const target = buildReturnUrl(returnUrl, result);
+  const safeTarget = escapeHtml(target);
+  const title = result.ok ? "保存しました" : "保存に失敗しました";
+  const message = result.ok
+    ? "保存しました。アプリへ戻ります。"
+    : "保存に失敗しました。アプリへ戻ります。";
+
+  const html = [
+    "<!doctype html>",
+    "<html lang=\"ja\">",
+    "<head>",
+    "<meta charset=\"utf-8\">",
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+    "<title>" + escapeHtml(title) + "</title>",
+    "<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;line-height:1.7;background:#f7f3ea;color:#1f2933}a{color:#1864ab}</style>",
+    "</head>",
+    "<body>",
+    "<p>" + escapeHtml(message) + "</p>",
+    "<p><a href=\"" + safeTarget + "\">アプリへ戻る</a></p>",
+    "<script>window.setTimeout(function(){location.replace(" + JSON.stringify(target) + ");}, 300);</script>",
+    "</body>",
+    "</html>"
+  ].join("");
+
+  return HtmlService.createHtmlOutput(html);
+}
+
+function buildReturnUrl(returnUrl, result) {
+  const fallback = "https://ray0308.github.io/owl-recipe-download/";
+  let url = String(returnUrl || fallback);
+  if (!/^https?:\/\//i.test(url)) url = fallback;
+
+  const separator = url.indexOf("?") === -1 ? "?" : "&";
+  if (result.ok) {
+    return url + separator +
+      "saved=1&recipe_id=" + encodeURIComponent(result.recipe_id || "") +
+      "&version=" + encodeURIComponent(result.version || "");
+  }
+  return url + separator + "save_error=" + encodeURIComponent(result.error || "保存に失敗しました。");
+}
+
 function postMessageResponse(payload, requestToken) {
   const message = {
     source: "recipe-vault-gas",
@@ -437,4 +482,13 @@ function postMessageResponse(payload, requestToken) {
   return HtmlService
     .createHtmlOutput(html)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

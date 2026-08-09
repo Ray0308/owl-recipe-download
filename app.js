@@ -12,7 +12,7 @@ const RECIPE_SCHEMA = {
     "schema_version": { "type": "integer", "const": 1 },
     "recipe_id": {
       "type": ["string", "null"],
-      "description": "新規レシピはnullまたは省略。既存レシピ改良時は元のrecipe_idを維持する。"
+      "description": "新規レシピはnullまたは省略。既存レシピを改善するときは元のrecipe_idを維持する。"
     },
     "title": { "type": "string", "minLength": 1 },
     "servings": { "type": ["string", "number"] },
@@ -49,7 +49,7 @@ const BASE_GPT_PROMPT = `以下のレシピをRecipe Vaultアプリ保存用JSON
 重要ルール:
 - OpenAI APIではなく、ユーザーが手動でこのJSONをアプリへ貼り付けます。
 - 新規レシピの場合、recipe_idはnullにするか省略してください。
-- 既存レシピを改良する場合、指定されたrecipe_idを必ず維持してください。
+- 既存レシピを改善する場合、指定されたrecipe_idを必ず維持してください。
 - 実際に使用した分量が不明な場合、勝手に確定せずamountは空文字にしてください。
 - 写真だけから実際の使用量を推測して確定しないでください。
 - tagsは料理ジャンル、主食材、用途など検索しやすい語にしてください。
@@ -89,6 +89,7 @@ photoEl.addEventListener("change", () => {
 recipeListEl.addEventListener("click", handleRecipeListClick);
 historyListEl.addEventListener("click", handleHistoryClick);
 
+handleSaveReturn();
 loadRecipes();
 
 async function pasteFromClipboard() {
@@ -96,7 +97,7 @@ async function pasteFromClipboard() {
     recipeJsonEl.value = await navigator.clipboard.readText();
     renderPreview();
   } catch (error) {
-    setStatus("クリップボードを読み取れませんでした。手動で貼り付けてください。", true);
+    setStatus("クリップボードを読めませんでした。手動で貼り付けてください。", true);
   }
 }
 
@@ -157,47 +158,47 @@ function validateRecipe(recipe, expectedRecipeId = null) {
     return ["ルートはオブジェクトである必要があります。"];
   }
 
-  if (!("schema_version" in recipe)) errors.push("schema_versionがありません。");
-  if (!("title" in recipe)) errors.push("titleがありません。");
-  if (!("ingredients" in recipe)) errors.push("ingredientsがありません。");
-  if (!("steps" in recipe)) errors.push("stepsがありません。");
+  if (!("schema_version" in recipe)) errors.push("schema_version がありません。");
+  if (!("title" in recipe)) errors.push("title がありません。");
+  if (!("ingredients" in recipe)) errors.push("ingredients がありません。");
+  if (!("steps" in recipe)) errors.push("steps がありません。");
 
   if (recipe.schema_version !== RECIPE_SCHEMA_VERSION) {
-    errors.push(`schema_versionは${RECIPE_SCHEMA_VERSION}である必要があります。`);
+    errors.push(`schema_version は ${RECIPE_SCHEMA_VERSION} である必要があります。`);
   }
   if (recipe.recipe_id !== null && recipe.recipe_id !== undefined && recipe.recipe_id !== "" && typeof recipe.recipe_id !== "string") {
-    errors.push("recipe_idは文字列、null、または省略である必要があります。");
+    errors.push("recipe_id は文字列、null、または空である必要があります。");
   }
   if (typeof recipe.title !== "string" || !recipe.title.trim()) {
-    errors.push("titleは空でない文字列である必要があります。");
+    errors.push("title は空でない文字列である必要があります。");
   }
   if (!Array.isArray(recipe.ingredients)) {
-    errors.push("ingredientsが配列ではありません。");
+    errors.push("ingredients が配列ではありません。");
   } else if (recipe.ingredients.length === 0) {
-    errors.push("ingredientsは1件以上必要です。");
+    errors.push("ingredients は1件以上必要です。");
   } else {
     recipe.ingredients.forEach((item, index) => {
       const label = `${index + 1}番目のingredient`;
       if (!item || typeof item !== "object" || Array.isArray(item)) {
-        errors.push(`${label}はオブジェクトである必要があります。`);
+        errors.push(`${label} はオブジェクトである必要があります。`);
         return;
       }
       if (!("name" in item)) {
-        errors.push(`${label}にnameがありません。`);
+        errors.push(`${label} にnameがありません。`);
       } else if (typeof item.name !== "string" || !item.name.trim()) {
-        errors.push(`${label}のnameは空でない文字列である必要があります。`);
+        errors.push(`${label} のnameは空でない文字列である必要があります。`);
       }
       if (!("amount" in item)) {
-        errors.push(`${label}にamountがありません。`);
+        errors.push(`${label} にamountがありません。`);
       } else if (typeof item.amount !== "string") {
-        errors.push(`${label}のamountは文字列である必要があります。不明な場合は空文字にしてください。`);
+        errors.push(`${label} のamountは文字列である必要があります。不明な場合は空文字にしてください。`);
       }
     });
   }
   if (!Array.isArray(recipe.steps)) {
-    errors.push("stepsが配列ではありません。");
+    errors.push("steps が配列ではありません。");
   } else if (recipe.steps.length === 0) {
-    errors.push("stepsは1件以上必要です。");
+    errors.push("steps は1件以上必要です。");
   } else {
     recipe.steps.forEach((step, index) => {
       if (typeof step !== "string" || !step.trim()) {
@@ -209,12 +210,12 @@ function validateRecipe(recipe, expectedRecipeId = null) {
   validateStringArray(recipe.tags, "tags", errors);
   validateStringArray(recipe.mood_tags, "mood_tags", errors);
 
-  if (!["string", "number"].includes(typeof recipe.servings)) errors.push("servingsは文字列または数値である必要があります。");
-  if (!["string", "number"].includes(typeof recipe.cooking_time)) errors.push("cooking_timeは文字列または数値である必要があります。");
-  if (typeof recipe.notes !== "string") errors.push("notesは文字列である必要があります。");
-  if (typeof recipe.improvements !== "string") errors.push("improvementsは文字列である必要があります。");
+  if (!["string", "number"].includes(typeof recipe.servings)) errors.push("servings は文字列または数値である必要があります。");
+  if (!["string", "number"].includes(typeof recipe.cooking_time)) errors.push("cooking_time は文字列または数値である必要があります。");
+  if (typeof recipe.notes !== "string") errors.push("notes は文字列である必要があります。");
+  if (typeof recipe.improvements !== "string") errors.push("improvements は文字列である必要があります。");
   if (expectedRecipeId && recipe.recipe_id !== expectedRecipeId) {
-    errors.push(`既存レシピ更新の場合、recipe_idは${expectedRecipeId}である必要があります。`);
+    errors.push(`既存レシピ更新の場合、recipe_id は ${expectedRecipeId} である必要があります。`);
   }
 
   return errors;
@@ -222,11 +223,11 @@ function validateRecipe(recipe, expectedRecipeId = null) {
 
 function validateStringArray(value, key, errors) {
   if (!Array.isArray(value)) {
-    errors.push(`${key}が配列ではありません。`);
+    errors.push(`${key} が配列ではありません。`);
     return;
   }
   value.forEach((item, index) => {
-    if (typeof item !== "string") errors.push(`${key}の${index + 1}番目は文字列である必要があります。`);
+    if (typeof item !== "string") errors.push(`${key} の${index + 1}番目は文字列である必要があります。`);
   });
 }
 
@@ -274,7 +275,7 @@ async function saveRecipe() {
   }
 
   try {
-    setStatus("保存中...");
+    setStatus("保存画面へ移動します...");
     const photoBase64 = photoEl.files[0] ? await fileToDataUrl(photoEl.files[0]) : null;
     const body = {
       action: "saveRecipe",
@@ -286,20 +287,68 @@ async function saveRecipe() {
       } : null
     };
 
-    const result = await postToGasAndConfirm(endpoint, body, parsed.recipe);
+    sessionStorage.setItem("recipeVaultPendingTitle", parsed.recipe.title || "");
+    submitSaveForm(endpoint, body);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
 
-    if (!result.ok) throw new Error(result.error || "保存に失敗しました。");
+function submitSaveForm(endpoint, payload) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = endpoint;
+  form.target = "_self";
+  form.enctype = "application/x-www-form-urlencoded";
+  form.style.display = "none";
 
-    setStatus(`保存しました: ${result.recipe_id} / Ver.${result.version}`);
+  addFormField(form, "payload", JSON.stringify(payload));
+  addFormField(form, "response_mode", "htmlRedirect");
+  addFormField(form, "return_url", cleanReturnUrl());
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function addFormField(form, name, value) {
+  const field = document.createElement("textarea");
+  field.name = name;
+  field.value = value;
+  form.appendChild(field);
+}
+
+function handleSaveReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const saved = params.get("saved");
+  const saveError = params.get("save_error");
+  const recipeId = params.get("recipe_id");
+  const version = params.get("version");
+
+  if (!saved && !saveError) return;
+
+  const cleanUrl = cleanReturnUrl();
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  if (saved === "1") {
+    const label = recipeId ? `${recipeId} / Ver.${version || ""}` : "保存しました";
+    setStatus(`保存しました: ${label}`);
     recipeJsonEl.value = "";
     photoEl.value = "";
     previewEl.classList.add("hidden");
     validationPanelEl.classList.add("hidden");
-    await loadRecipes();
-    await openRecipe(result.recipe_id);
-  } catch (error) {
-    setStatus(error.message, true);
+    sessionStorage.removeItem("recipeVaultPendingTitle");
+    if (recipeId) {
+      window.setTimeout(() => openRecipe(recipeId), 800);
+    }
+  } else if (saveError) {
+    setStatus(`保存に失敗しました: ${saveError}`, true);
   }
+}
+
+function cleanReturnUrl() {
+  const url = new URL(window.location.href);
+  ["saved", "save_error", "recipe_id", "version"].forEach((key) => url.searchParams.delete(key));
+  return url.toString();
 }
 
 async function loadRecipes() {
@@ -310,7 +359,7 @@ async function loadRecipes() {
   }
 
   try {
-    const result = await requestJson(`${endpoint}?action=listRecipes`);
+    const result = await requestJson(`${endpoint}?action=listRecipes&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "一覧を取得できませんでした。");
     recipes = result.items || [];
     renderRecipeList();
@@ -361,7 +410,7 @@ async function openRecipe(recipeId, version = null) {
   try {
     setStatus("詳細を取得中...");
     const versionParam = version ? `&version=${encodeURIComponent(version)}` : "";
-    const result = await requestJson(`${endpoint}?action=getRecipe&recipe_id=${encodeURIComponent(recipeId)}${versionParam}`);
+    const result = await requestJson(`${endpoint}?action=getRecipe&recipe_id=${encodeURIComponent(recipeId)}${versionParam}&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "詳細を取得できませんでした。");
     currentDetail = result.item;
     renderDetail(result.item, result.history || []);
@@ -429,6 +478,7 @@ function copyConsultPrompt() {
   const steps = recipe.steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
 
   const prompt = `このレシピについて相談します。
+
 料理名:
 ${recipe.title}
 
@@ -464,7 +514,10 @@ ${recipe.improvements || ""}
 
 相談後、保存するときはRecipe Vaultアプリ保存用JSONのみで出力してください。
 recipe_idは必ず「${currentDetail.recipe_id}」を維持してください。
-実際の分量が不明な場合は、推測で確定せずamountを空文字にしてください。`;
+実際の分量が不明な場合、推測で確定せずamountを空文字にしてください。
+
+JSON Schema:
+${JSON.stringify(RECIPE_SCHEMA, null, 2)}`;
 
   copyText(prompt, "GPT相談用テキストをコピーしました。");
 }
@@ -495,60 +548,6 @@ async function requestJson(url, options) {
   } catch (error) {
     throw new Error(`サーバー応答をJSONとして読めませんでした。HTTP ${response.status}`);
   }
-}
-
-async function postToGasAndConfirm(endpoint, payload, recipe) {
-  const formBody = new URLSearchParams();
-  formBody.set("payload", JSON.stringify(payload));
-  formBody.set("response_mode", "none");
-
-  await fetch(endpoint, {
-    method: "POST",
-    mode: "no-cors",
-    body: formBody
-  });
-
-  return await waitForSavedRecipe(endpoint, recipe);
-}
-
-async function waitForSavedRecipe(endpoint, recipe) {
-  const startedAt = Date.now();
-  const existingRecipeId = recipe.recipe_id || "";
-  const expectedTitle = recipe.title || "";
-
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    await delay(attempt < 3 ? 1200 : 2200);
-    const result = await requestJson(`${endpoint}?action=listRecipes&_=${Date.now()}`);
-    if (!result.ok) throw new Error(result.error || "保存確認に失敗しました。");
-
-    const items = result.items || [];
-    const matched = existingRecipeId
-      ? items.find((item) => item.recipe_id === existingRecipeId)
-      : items.find((item) => item.title === expectedTitle && isRecent(item.created_at, startedAt));
-
-    if (matched) {
-      recipes = items;
-      renderRecipeList();
-      return {
-        ok: true,
-        recipe_id: matched.recipe_id,
-        version: matched.version
-      };
-    }
-  }
-
-  throw new Error("保存確認がタイムアウトしました。少し待ってから再読み込みしてください。");
-}
-
-function isRecent(value, startedAt) {
-  if (!value) return true;
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return true;
-  return time >= startedAt - 60000;
-}
-
-function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function fileToDataUrl(file) {

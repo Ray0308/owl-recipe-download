@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "type": "restaurant",
+  "restaurant_id": null,
+  "name": "魚炉魚炉寿し",
+  "phone": "050-5593-5701",
+  "address": "神奈川県川崎市川崎区砂子2-6-5 日吉屋砂子ビル B1F",
+  "url": "https://tabelog.com/kanagawa/A1405/A140501/14094614/",
+  "area": "川崎",
+  "genres": ["寿司", "海鮮"],
+  "tags": ["川崎", "寿司", "海鮮"],
+  "mood_tags": ["また行きたい", "酒に合う"],
+  "notes": "",
+  "status": "want_to_visit"
+}

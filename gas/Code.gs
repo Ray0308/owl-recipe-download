@@ -1,6 +1,10 @@
-const SHEET_NAME = "recipes";
 const SCHEMA_VERSION = 1;
-const HEADERS = [
+const RECIPE_SHEET_NAME = "recipes";
+const RESTAURANT_SHEET_NAME = "restaurants";
+const RECIPE_USER_META_SHEET_NAME = "recipe_user_meta";
+const RESTAURANT_USER_META_SHEET_NAME = "restaurant_user_meta";
+
+const RECIPE_HEADERS = [
   "recipe_id",
   "version",
   "title",
@@ -10,6 +14,37 @@ const HEADERS = [
   "image_file_id",
   "recipe_json",
   "created_at"
+];
+const RESTAURANT_HEADERS = [
+  "restaurant_id",
+  "name",
+  "phone",
+  "address",
+  "url",
+  "area",
+  "genres",
+  "tags",
+  "mood_tags",
+  "image_file_id",
+  "restaurant_json",
+  "created_at"
+];
+const RECIPE_USER_META_HEADERS = [
+  "recipe_id",
+  "favorite",
+  "last_cooked_at",
+  "cooked_count",
+  "updated_at"
+];
+const RESTAURANT_USER_META_HEADERS = [
+  "restaurant_id",
+  "favorite",
+  "want_to_visit",
+  "visited",
+  "want_to_revisit",
+  "last_visited_at",
+  "visit_count",
+  "updated_at"
 ];
 
 // Script Properties:
@@ -30,6 +65,15 @@ function doGet(e) {
       return jsonResponse(getRecipe(recipeId, version));
     }
 
+    if (action === "listRestaurants") {
+      return jsonResponse({ ok: true, items: listRestaurants() });
+    }
+
+    if (action === "getRestaurant") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      return jsonResponse(getRestaurant(restaurantId));
+    }
+
     return jsonResponse({ ok: false, error: "Unknown action." });
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err.message || err) });
@@ -47,6 +91,10 @@ function doPost(e) {
 
     if (payload.action === "saveRecipe") {
       result = Object.assign({ ok: true }, saveRecipe(payload.recipe, payload.photo));
+    }
+
+    if (payload.action === "saveRestaurant") {
+      result = Object.assign({ ok: true }, saveRestaurant(payload.restaurant, payload.photo));
     }
 
     if (responseMode === "htmlRedirect") return redirectResponse(result, returnUrl);
@@ -184,6 +232,108 @@ function getRecipe(recipeId, version) {
   };
 }
 
+function saveRestaurant(inputRestaurant, photo) {
+  const restaurant = normalizeRestaurant(inputRestaurant);
+  validateRestaurant(restaurant);
+
+  const sheet = getRestaurantSheet();
+  ensureHeader(sheet, RESTAURANT_HEADERS);
+  const records = readRestaurantRecords(sheet);
+
+  const suppliedRestaurantId = restaurant.restaurant_id || "";
+  let restaurantId = suppliedRestaurantId;
+  let imageFileId = "";
+
+  if (suppliedRestaurantId) {
+    const existing = records.filter(function (record) {
+      return record.restaurant_id === suppliedRestaurantId;
+    });
+    if (existing.length === 0) {
+      throw new Error("指定されたrestaurant_idの既存店舗が見つかりません: " + suppliedRestaurantId);
+    }
+    imageFileId = existing[existing.length - 1].image_file_id || "";
+  } else {
+    restaurantId = Utilities.getUuid();
+    restaurant.restaurant_id = restaurantId;
+  }
+
+  if (photo && photo.dataUrl) {
+    imageFileId = savePhoto(photo, restaurantId, "restaurant");
+  }
+
+  const record = {
+    restaurant_id: restaurantId,
+    name: restaurant.name,
+    phone: restaurant.phone,
+    address: restaurant.address,
+    url: restaurant.url,
+    area: restaurant.area,
+    genres: restaurant.genres.join(","),
+    tags: restaurant.tags.join(","),
+    mood_tags: restaurant.mood_tags.join(","),
+    image_file_id: imageFileId,
+    restaurant_json: JSON.stringify(restaurant),
+    created_at: new Date()
+  };
+
+  appendRecord(sheet, record);
+  ensureRestaurantUserMeta(restaurantId, restaurant.status);
+
+  return {
+    restaurant_id: restaurantId,
+    image_file_id: imageFileId,
+    image_url: imageUrl(imageFileId)
+  };
+}
+
+function listRestaurants() {
+  const sheet = getRestaurantSheet();
+  ensureHeader(sheet, RESTAURANT_HEADERS);
+
+  const latest = {};
+  readRestaurantRecords(sheet).forEach(function (record) {
+    if (!latest[record.restaurant_id] || new Date(latest[record.restaurant_id].created_at).getTime() < new Date(record.created_at).getTime()) {
+      latest[record.restaurant_id] = record;
+    }
+  });
+
+  const metaById = readRestaurantUserMetaById();
+  return Object.keys(latest)
+    .map(function (key) {
+      return publicRestaurantRecord(latest[key], false, metaById[key]);
+    })
+    .sort(function (a, b) {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+}
+
+function getRestaurant(restaurantId) {
+  if (!restaurantId) throw new Error("restaurant_id is required.");
+
+  const sheet = getRestaurantSheet();
+  ensureHeader(sheet, RESTAURANT_HEADERS);
+
+  const records = readRestaurantRecords(sheet)
+    .filter(function (record) {
+      return record.restaurant_id === restaurantId;
+    })
+    .sort(function (a, b) {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+
+  if (records.length === 0) {
+    return { ok: false, error: "飲食店が見つかりません。" };
+  }
+
+  const selected = records[records.length - 1];
+  const meta = readRestaurantUserMetaById()[restaurantId] || defaultRestaurantMeta(restaurantId, selected.restaurant.status);
+
+  return {
+    ok: true,
+    item: publicRestaurantRecord(selected, true, meta)
+  };
+}
+
 function appendRecord(sheet, record) {
   const headers = getHeaders(sheet);
   const row = headers.map(function (header) {
@@ -235,6 +385,52 @@ function readRecords(sheet) {
     });
 }
 
+function readRestaurantRecords(sheet) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+
+  const headers = values[0].map(function (value) {
+    return String(value);
+  });
+  const index = {};
+  headers.forEach(function (header, i) {
+    index[header] = i;
+  });
+
+  return values.slice(1)
+    .filter(function (row) {
+      return row[index.restaurant_id] !== "";
+    })
+    .map(function (row) {
+      const restaurantJson = String(row[index.restaurant_json] || "{}");
+      let restaurant = {};
+      try {
+        restaurant = normalizeRestaurant(JSON.parse(restaurantJson));
+      } catch (err) {
+        restaurant = {};
+      }
+
+      const restaurantId = String(row[index.restaurant_id] || restaurant.restaurant_id || "");
+      if (restaurant && !restaurant.restaurant_id) restaurant.restaurant_id = restaurantId;
+
+      return {
+        restaurant_id: restaurantId,
+        name: String(row[index.name] || restaurant.name || ""),
+        phone: String(row[index.phone] || restaurant.phone || ""),
+        address: String(row[index.address] || restaurant.address || ""),
+        url: String(row[index.url] || restaurant.url || ""),
+        area: String(row[index.area] || restaurant.area || ""),
+        genres: String(row[index.genres] || (restaurant.genres || []).join(",")),
+        tags: String(row[index.tags] || (restaurant.tags || []).join(",")),
+        mood_tags: String(row[index.mood_tags] || (restaurant.mood_tags || []).join(",")),
+        image_file_id: String(row[index.image_file_id] || ""),
+        restaurant_json: restaurantJson,
+        restaurant: restaurant,
+        created_at: row[index.created_at]
+      };
+    });
+}
+
 function publicRecord(record, includeRecipe) {
   const result = {
     recipe_id: record.recipe_id,
@@ -251,7 +447,91 @@ function publicRecord(record, includeRecipe) {
   return result;
 }
 
-function savePhoto(photo, recipeId, version) {
+function publicRestaurantRecord(record, includeRestaurant, meta) {
+  const result = {
+    restaurant_id: record.restaurant_id,
+    name: record.name,
+    phone: record.phone,
+    address: record.address,
+    url: record.url,
+    area: record.area,
+    genres: record.genres,
+    tags: record.tags,
+    mood_tags: record.mood_tags,
+    image_file_id: record.image_file_id,
+    image_url: imageUrl(record.image_file_id),
+    created_at: record.created_at,
+    meta: meta || defaultRestaurantMeta(record.restaurant_id, record.restaurant && record.restaurant.status)
+  };
+  if (includeRestaurant) result.restaurant = record.restaurant;
+  return result;
+}
+
+function ensureRestaurantUserMeta(restaurantId, status) {
+  const sheet = getRestaurantUserMetaSheet();
+  ensureHeader(sheet, RESTAURANT_USER_META_HEADERS);
+  const metaById = readRestaurantUserMetaById();
+  if (metaById[restaurantId]) return metaById[restaurantId];
+
+  const meta = defaultRestaurantMeta(restaurantId, status);
+  meta.updated_at = new Date();
+  appendRecord(sheet, meta);
+  return meta;
+}
+
+function readRestaurantUserMetaById() {
+  const sheet = getRestaurantUserMetaSheet();
+  ensureHeader(sheet, RESTAURANT_USER_META_HEADERS);
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return {};
+
+  const headers = values[0].map(function (value) {
+    return String(value);
+  });
+  const index = {};
+  headers.forEach(function (header, i) {
+    index[header] = i;
+  });
+
+  const result = {};
+  values.slice(1).forEach(function (row) {
+    const restaurantId = String(row[index.restaurant_id] || "");
+    if (!restaurantId) return;
+    result[restaurantId] = {
+      restaurant_id: restaurantId,
+      favorite: toBoolean(row[index.favorite]),
+      want_to_visit: toBoolean(row[index.want_to_visit]),
+      visited: toBoolean(row[index.visited]),
+      want_to_revisit: toBoolean(row[index.want_to_revisit]),
+      last_visited_at: row[index.last_visited_at] || "",
+      visit_count: Number(row[index.visit_count] || 0),
+      updated_at: row[index.updated_at] || ""
+    };
+  });
+  return result;
+}
+
+function defaultRestaurantMeta(restaurantId, status) {
+  const normalizedStatus = String(status || "want_to_visit");
+  return {
+    restaurant_id: restaurantId,
+    favorite: false,
+    want_to_visit: normalizedStatus === "want_to_visit",
+    visited: normalizedStatus === "visited" || normalizedStatus === "want_to_revisit",
+    want_to_revisit: normalizedStatus === "want_to_revisit",
+    last_visited_at: "",
+    visit_count: 0,
+    updated_at: ""
+  };
+}
+
+function toBoolean(value) {
+  if (value === true) return true;
+  const text = String(value || "").toLowerCase();
+  return text === "true" || text === "1" || text === "yes";
+}
+
+function savePhoto(photo, contentId, versionLabel) {
   const folderId = PropertiesService.getScriptProperties().getProperty("DRIVE_FOLDER_ID");
   if (!folderId) throw new Error("DRIVE_FOLDER_IDが未設定です。");
 
@@ -269,7 +549,8 @@ function savePhoto(photo, recipeId, version) {
 
   const safeOriginalName = String(photo.name || "photo").replace(/[\\/:*?"<>|]/g, "_");
   const baseName = safeOriginalName.replace(/\.[^.]+$/, "");
-  const name = recipeId + "_v" + version + "_" + baseName + "." + extensionFromMime(mimeType);
+  const versionPart = versionLabel === "restaurant" ? "_restaurant" : "_v" + versionLabel;
+  const name = contentId + versionPart + "_" + baseName + "." + extensionFromMime(mimeType);
 
   const blob = Utilities.newBlob(bytes, mimeType, name);
   const file = DriveApp.getFolderById(folderId).createFile(blob);
@@ -308,6 +589,44 @@ function normalizeRecipe(recipe) {
     cooking_time: normalized.cooking_time,
     notes: normalized.notes,
     improvements: normalized.improvements
+  };
+}
+
+function normalizeRestaurant(restaurant) {
+  if (!restaurant || typeof restaurant !== "object") return restaurant;
+  const normalized = Object.assign({}, restaurant);
+
+  if (normalized.schemaVersion && !normalized.schema_version) normalized.schema_version = normalized.schemaVersion;
+  if (normalized.restaurantId && !normalized.restaurant_id) normalized.restaurant_id = normalized.restaurantId;
+  if (normalized.genre && !normalized.genres) normalized.genres = [normalized.genre];
+  if (normalized.moodTags && !normalized.mood_tags) normalized.mood_tags = normalized.moodTags;
+
+  if (!("type" in normalized)) normalized.type = "restaurant";
+  if (!("restaurant_id" in normalized)) normalized.restaurant_id = null;
+  if (!("phone" in normalized)) normalized.phone = "";
+  if (!("address" in normalized)) normalized.address = "";
+  if (!("url" in normalized)) normalized.url = "";
+  if (!("area" in normalized)) normalized.area = "";
+  if (!("genres" in normalized)) normalized.genres = [];
+  if (!("tags" in normalized)) normalized.tags = [];
+  if (!("mood_tags" in normalized)) normalized.mood_tags = [];
+  if (!("notes" in normalized)) normalized.notes = "";
+  if (!("status" in normalized)) normalized.status = "want_to_visit";
+
+  return {
+    schema_version: normalized.schema_version,
+    type: normalized.type,
+    restaurant_id: normalized.restaurant_id,
+    name: normalized.name,
+    phone: normalized.phone,
+    address: normalized.address,
+    url: normalized.url,
+    area: normalized.area,
+    genres: normalized.genres,
+    tags: normalized.tags,
+    mood_tags: normalized.mood_tags,
+    notes: normalized.notes,
+    status: normalized.status
   };
 }
 
@@ -356,6 +675,44 @@ function validateRecipe(recipe) {
   if (errors.length) throw new Error(errors.join(" / "));
 }
 
+function validateRestaurant(restaurant) {
+  const errors = [];
+
+  if (!restaurant || typeof restaurant !== "object" || Array.isArray(restaurant)) {
+    throw new Error("restaurantはオブジェクトである必要があります。");
+  }
+
+  if (!("schema_version" in restaurant)) errors.push("schema_versionがありません。");
+  if (restaurant.schema_version !== SCHEMA_VERSION) errors.push("schema_versionは" + SCHEMA_VERSION + "である必要があります。");
+  if (restaurant.type !== "restaurant") errors.push("typeはrestaurantである必要があります。");
+  if (restaurant.restaurant_id !== null && restaurant.restaurant_id !== undefined && restaurant.restaurant_id !== "" && typeof restaurant.restaurant_id !== "string") errors.push("restaurant_idは文字列、null、または空である必要があります。");
+  if (typeof restaurant.name !== "string" || !restaurant.name.trim()) errors.push("nameは空でない文字列である必要があります。");
+  if (typeof restaurant.phone !== "string") errors.push("phoneは文字列である必要があります。");
+  if (typeof restaurant.address !== "string") errors.push("addressは文字列である必要があります。");
+  if (typeof restaurant.url !== "string") errors.push("urlは文字列である必要があります。");
+  if (typeof restaurant.area !== "string") errors.push("areaは文字列である必要があります。");
+  if (!Array.isArray(restaurant.genres)) errors.push("genresが配列ではありません。");
+  if (!Array.isArray(restaurant.tags)) errors.push("tagsが配列ではありません。");
+  if (!Array.isArray(restaurant.mood_tags)) errors.push("mood_tagsが配列ではありません。");
+  if (typeof restaurant.notes !== "string") errors.push("notesは文字列である必要があります。");
+  if (["want_to_visit", "visited", "want_to_revisit"].indexOf(restaurant.status) === -1) {
+    errors.push("statusはwant_to_visit、visited、want_to_revisitのいずれかである必要があります。");
+  }
+
+  validateStringArrayForGas(restaurant.genres, "genres", errors);
+  validateStringArrayForGas(restaurant.tags, "tags", errors);
+  validateStringArrayForGas(restaurant.mood_tags, "mood_tags", errors);
+
+  if (errors.length) throw new Error(errors.join(" / "));
+}
+
+function validateStringArrayForGas(value, key, errors) {
+  if (!Array.isArray(value)) return;
+  value.forEach(function (item, index) {
+    if (typeof item !== "string") errors.push(key + "の" + (index + 1) + "番目は文字列である必要があります。");
+  });
+}
+
 function ingredientsText(recipe) {
   if (!recipe || !Array.isArray(recipe.ingredients)) return "";
   return recipe.ingredients.map(function (item) {
@@ -370,23 +727,40 @@ function latestRecord(records) {
 }
 
 function getSheet() {
+  return getSheetByName(RECIPE_SHEET_NAME);
+}
+
+function getRestaurantSheet() {
+  return getSheetByName(RESTAURANT_SHEET_NAME);
+}
+
+function getRecipeUserMetaSheet() {
+  return getSheetByName(RECIPE_USER_META_SHEET_NAME);
+}
+
+function getRestaurantUserMetaSheet() {
+  return getSheetByName(RESTAURANT_USER_META_SHEET_NAME);
+}
+
+function getSheetByName(sheetName) {
   const spreadsheetId = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID");
   if (!spreadsheetId) throw new Error("SPREADSHEET_IDが未設定です。");
 
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-  let sheet = spreadsheet.getSheetByName(SHEET_NAME);
-  if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
+  let sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
   return sheet;
 }
 
-function ensureHeader(sheet) {
+function ensureHeader(sheet, expectedHeaders) {
+  const headersToUse = expectedHeaders || RECIPE_HEADERS;
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(HEADERS);
+    sheet.appendRow(headersToUse);
     return;
   }
 
   const existing = getHeaders(sheet);
-  HEADERS.forEach(function (header) {
+  headersToUse.forEach(function (header) {
     if (existing.indexOf(header) === -1) {
       sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
       existing.push(header);
@@ -457,9 +831,13 @@ function buildReturnUrl(returnUrl, result) {
 
   const separator = url.indexOf("?") === -1 ? "?" : "&";
   if (result.ok) {
-    return url + separator +
-      "saved=1&recipe_id=" + encodeURIComponent(result.recipe_id || "") +
-      "&version=" + encodeURIComponent(result.version || "");
+    const params = [
+      "saved=1",
+      "recipe_id=" + encodeURIComponent(result.recipe_id || ""),
+      "restaurant_id=" + encodeURIComponent(result.restaurant_id || ""),
+      "version=" + encodeURIComponent(result.version || "")
+    ];
+    return url + separator + params.join("&");
   }
   return url + separator + "save_error=" + encodeURIComponent(result.error || "保存に失敗しました。");
 }

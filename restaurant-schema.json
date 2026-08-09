@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Food Platform Restaurant JSON",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "type", "name"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "restaurant"
+    },
+    "restaurant_id": {
+      "type": ["string", "null"],
+      "description": "新規店舗はnullまたは省略。既存店舗を更新するときは元のrestaurant_idを維持する。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phone": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "area": {
+      "type": "string"
+    },
+    "genres": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mood_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["want_to_visit", "visited", "want_to_revisit"]
+    }
+  }
+}

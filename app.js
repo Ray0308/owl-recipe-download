@@ -94,7 +94,7 @@ $("addRecipeBtn").addEventListener("click", () => {
   showView("add-recipe");
 });
 $("addRestaurantBtn").addEventListener("click", () => {
-  setStatus("飲食店登録はPhase 3で追加します。");
+  setStatus("飲食店登録画面はPhase 4で追加します。");
   closeAddModal();
 });
 $("placesNavBtn").addEventListener("click", () => {

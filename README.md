@@ -1,6 +1,6 @@
-# Recipe Vault
+# Food Platform
 
-Recipe Vaultは、個人で作った料理・レシピを簡単に保存、検索、改善していくためのレシピ管理Webアプリです。
+Food Platformは、個人で作った料理・レシピを簡単に保存、検索、改善していくためのWebアプリです。現在はRecipe機能が中心で、Restaurant基盤を段階的に追加しています。
 
 目的は「登録が面倒で使わなくなる」ことを防ぐことです。料理名、材料、手順、タグなどはユーザーがフォーム入力せず、普段利用しているChatGPT Plusで整理した保存用JSONを貼り付けて保存します。
 
@@ -174,6 +174,76 @@ Google Drive写真フォルダ:
 - `image_file_id`
 - `recipe_json`
 - `created_at`
+
+Phase 3以降では、飲食店管理のために以下のシートも使用します。GASが必要時に自動作成します。
+
+- `restaurants`
+- `recipe_user_meta`
+- `restaurant_user_meta`
+
+`restaurants` の保存列:
+
+- `restaurant_id`
+- `name`
+- `phone`
+- `address`
+- `url`
+- `area`
+- `genres`
+- `tags`
+- `mood_tags`
+- `image_file_id`
+- `restaurant_json`
+- `created_at`
+
+`restaurant_user_meta` の保存列:
+
+- `restaurant_id`
+- `favorite`
+- `want_to_visit`
+- `visited`
+- `want_to_revisit`
+- `last_visited_at`
+- `visit_count`
+- `updated_at`
+
+## Restaurant JSON仕様
+
+正式Schemaは `restaurant-schema.json` です。サンプルは `restaurant-schema-example.json` を参照してください。
+
+最小構造:
+
+```json
+{
+  "schema_version": 1,
+  "type": "restaurant",
+  "restaurant_id": null,
+  "name": "",
+  "phone": "",
+  "address": "",
+  "url": "",
+  "area": "",
+  "genres": [],
+  "tags": [],
+  "mood_tags": [],
+  "notes": "",
+  "status": "want_to_visit"
+}
+```
+
+必須項目:
+
+- `schema_version`
+- `type`
+- `name`
+
+`restaurant_id` は店名から自動判定しません。新規店舗は `null` または省略し、保存時にGASが一意IDを発行します。
+
+Restaurant API:
+
+- `GET ?action=listRestaurants`
+- `GET ?action=getRestaurant&restaurant_id=...`
+- `POST action=saveRestaurant`
 
 ## 写真保存
 

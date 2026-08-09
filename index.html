@@ -3,27 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7f3ea">
-  <title>Recipe Vault</title>
+  <meta name="theme-color" content="#fbf8f1">
+  <title>Food Platform</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">Personal Recipe Vault</p>
-      <h1>Recipe Vault</h1>
-      <p>ChatGPT Plusで整えた保存用JSONを、写真と一緒に保存・検索・改善できます。</p>
+      <p class="eyebrow">Personal Food Platform</p>
+      <h1>Food Platform</h1>
+      <p>作った料理、また作りたいレシピ、行きたい店を自分の食の棚に残します。</p>
     </div>
   </header>
 
   <main class="container">
-    <section class="card">
+    <section id="homeSection" class="app-view">
+      <div class="home-lead">
+        <h2>今日は何にする？</h2>
+        <div class="choice-row" aria-label="今日の選択">
+          <button id="cookTodayBtn" type="button" class="choice-button">自分で作る</button>
+          <button id="eatOutBtn" type="button" class="choice-button secondary-button">外で食べる</button>
+        </div>
+      </div>
+
+      <section class="search-panel" aria-label="検索">
+        <label for="searchInput">料理・食材・タグを検索</label>
+        <input id="searchInput" type="search" placeholder="例: 鶏肉 さっぱり 作り置き">
+      </section>
+
+      <section class="content-section" aria-labelledby="recipeListTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="recipeListTitle">最近のレシピ</h2>
+            <p>写真と料理名から選べます。詳しい情報は開いたあとに表示します。</p>
+          </div>
+          <button id="reloadBtn" type="button" class="secondary-button">再読み込み</button>
+        </div>
+        <div id="recipeList" class="recipe-list"></div>
+      </section>
+    </section>
+
+    <section id="recipeFormSection" class="app-view hidden">
       <div class="section-head">
         <div>
+          <p class="eyebrow">New Recipe</p>
           <h2>レシピ登録</h2>
-          <p>料理名や材料はJSONから取得します。手入力は最小限です。</p>
+          <p>ChatGPT Plusで整えた保存用JSONを貼り付けます。料理名や材料の再入力は不要です。</p>
         </div>
-        <button id="copyPromptBtn" type="button">GPT用プロンプトをコピー</button>
+        <button id="copyPromptBtn" type="button" class="secondary-button">GPT用プロンプトをコピー</button>
       </div>
 
       <label for="recipeJson">アプリ保存用JSON</label>
@@ -42,30 +69,16 @@
       <div id="preview" class="preview hidden"></div>
 
       <button id="saveBtn" class="primary" type="button">保存する</button>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="card">
+    <section id="detailCard" class="app-view detail-view hidden">
       <div class="section-head">
         <div>
-          <h2>レシピ一覧</h2>
-          <p>料理名・食材・タグ・気分タグで検索できます。</p>
-        </div>
-        <button id="reloadBtn" type="button">再読み込み</button>
-      </div>
-
-      <label for="searchInput">検索</label>
-      <input id="searchInput" type="search" placeholder="例: 鶏肉 さっぱり 作り置き">
-      <div id="recipeList" class="recipe-list"></div>
-    </section>
-
-    <section id="detailCard" class="card hidden">
-      <div class="section-head">
-        <div>
+          <p class="eyebrow">Recipe</p>
           <h2 id="detailTitle">レシピ詳細</h2>
           <p id="detailMeta"></p>
         </div>
-        <button id="closeDetailBtn" type="button">閉じる</button>
+        <button id="closeDetailBtn" type="button" class="secondary-button">戻る</button>
       </div>
 
       <div id="detailBody" class="detail-body"></div>
@@ -75,10 +88,41 @@
         <button id="copyPromptFromDetailBtn" type="button">GPT用プロンプトをコピー</button>
       </div>
 
-      <h3>バージョン履歴</h3>
+      <h3 class="history-title">改善履歴</h3>
       <div id="historyList" class="history-list"></div>
     </section>
+
+    <p id="status" class="status toast-line" role="status" aria-live="polite"></p>
   </main>
+
+  <nav class="bottom-navigation" aria-label="メインナビゲーション">
+    <button id="homeNavBtn" type="button" aria-current="page">ホーム</button>
+    <button id="recipesNavBtn" type="button">レシピ</button>
+    <button id="addNavBtn" type="button" class="add-button" aria-label="追加">＋</button>
+    <button id="placesNavBtn" type="button">お店</button>
+  </nav>
+
+  <div id="addModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
+    <div class="modal-panel">
+      <div class="section-head modal-head">
+        <div>
+          <p class="eyebrow">Add</p>
+          <h2 id="addModalTitle">何を追加しますか？</h2>
+        </div>
+        <button id="closeAddModalBtn" type="button" class="icon-button" aria-label="閉じる">×</button>
+      </div>
+      <div class="add-choice-list">
+        <button id="addRecipeBtn" type="button">
+          <span>レシピ</span>
+          <small>ChatGPTの保存用JSONを貼り付ける</small>
+        </button>
+        <button id="addRestaurantBtn" type="button" class="secondary-button">
+          <span>飲食店</span>
+          <small>Phase 3で追加予定</small>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script src="app.js"></script>

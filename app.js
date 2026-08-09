@@ -70,6 +70,9 @@ const detailTitleEl = $("detailTitle");
 const detailMetaEl = $("detailMeta");
 const detailBodyEl = $("detailBody");
 const historyListEl = $("historyList");
+const homeSectionEl = $("homeSection");
+const recipeFormSectionEl = $("recipeFormSection");
+const addModalEl = $("addModal");
 
 let recipes = [];
 let currentDetail = null;
@@ -81,16 +84,73 @@ $("reloadBtn").addEventListener("click", loadRecipes);
 $("copyPromptBtn").addEventListener("click", () => copyText(BASE_GPT_PROMPT, "GPT用プロンプトをコピーしました。"));
 $("copyPromptFromDetailBtn").addEventListener("click", () => copyText(BASE_GPT_PROMPT, "GPT用プロンプトをコピーしました。"));
 $("copyRecipeBtn").addEventListener("click", copyConsultPrompt);
-$("closeDetailBtn").addEventListener("click", () => detailCardEl.classList.add("hidden"));
+$("closeDetailBtn").addEventListener("click", () => showView("home"));
+$("homeNavBtn").addEventListener("click", () => showView("home"));
+$("recipesNavBtn").addEventListener("click", () => showView("recipes"));
+$("addNavBtn").addEventListener("click", openAddModal);
+$("closeAddModalBtn").addEventListener("click", closeAddModal);
+$("addRecipeBtn").addEventListener("click", () => {
+  closeAddModal();
+  showView("add-recipe");
+});
+$("addRestaurantBtn").addEventListener("click", () => {
+  setStatus("飲食店登録はPhase 3で追加します。");
+  closeAddModal();
+});
+$("placesNavBtn").addEventListener("click", () => {
+  showView("places");
+  setStatus("お店の一覧はPhase 4で追加します。");
+});
+$("cookTodayBtn").addEventListener("click", () => {
+  searchInputEl.value = "簡単";
+  renderRecipeList();
+  recipeListEl.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("eatOutBtn").addEventListener("click", () => {
+  setStatus("お店の候補表示はPhase 4で追加します。");
+});
 searchInputEl.addEventListener("input", renderRecipeList);
 photoEl.addEventListener("change", () => {
   if (recipeJsonEl.value.trim()) renderPreview();
 });
 recipeListEl.addEventListener("click", handleRecipeListClick);
+recipeListEl.addEventListener("keydown", handleRecipeListKeydown);
 historyListEl.addEventListener("click", handleHistoryClick);
+addModalEl.addEventListener("click", (event) => {
+  if (event.target === addModalEl) closeAddModal();
+});
 
 handleSaveReturn();
 loadRecipes();
+
+function showView(view) {
+  const isAddRecipe = view === "add-recipe";
+  const isDetail = view === "detail";
+
+  homeSectionEl.classList.toggle("hidden", isAddRecipe || isDetail);
+  recipeFormSectionEl.classList.toggle("hidden", !isAddRecipe);
+  detailCardEl.classList.toggle("hidden", !isDetail);
+
+  setCurrentNav(view);
+
+  const target = isAddRecipe ? recipeFormSectionEl : isDetail ? detailCardEl : homeSectionEl;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setCurrentNav(view) {
+  ["homeNavBtn", "recipesNavBtn", "placesNavBtn"].forEach((id) => $(id).removeAttribute("aria-current"));
+  if (view === "recipes") $("recipesNavBtn").setAttribute("aria-current", "page");
+  else if (view === "places") $("placesNavBtn").setAttribute("aria-current", "page");
+  else if (view !== "add-recipe" && view !== "detail") $("homeNavBtn").setAttribute("aria-current", "page");
+}
+
+function openAddModal() {
+  addModalEl.classList.remove("hidden");
+}
+
+function closeAddModal() {
+  addModalEl.classList.add("hidden");
+}
 
 async function pasteFromClipboard() {
   try {
@@ -384,13 +444,12 @@ function renderRecipeList() {
 
   recipeListEl.innerHTML = filtered.length
     ? filtered.map((recipe) => `
-      <article class="recipe-item">
-        ${recipe.image_url ? `<img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="">` : ""}
+      <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
+        ${recipeThumbHtml(recipe)}
         <div class="recipe-item-body">
           <h3>${escapeHtml(recipe.title || "")}</h3>
-          <p>Ver.${escapeHtml(String(recipe.version || ""))} / ${formatDate(recipe.created_at)}</p>
-          <div class="tags">${tagHtml(recipe.tags)}${tagHtml(recipe.mood_tags, "mood")}</div>
-          <button type="button" data-recipe-id="${escapeAttribute(recipe.recipe_id)}">詳細を見る</button>
+          <p>${escapeHtml(recipeCardMeta(recipe))}</p>
+          <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
         </div>
       </article>
     `).join("")
@@ -398,9 +457,51 @@ function renderRecipeList() {
 }
 
 async function handleRecipeListClick(event) {
-  const button = event.target.closest("[data-recipe-id]");
-  if (!button) return;
-  await openRecipe(button.dataset.recipeId);
+  const card = event.target.closest("[data-recipe-id]");
+  if (!card) return;
+  await openRecipe(card.dataset.recipeId);
+}
+
+async function handleRecipeListKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const card = event.target.closest("[data-recipe-id]");
+  if (!card) return;
+  event.preventDefault();
+  await openRecipe(card.dataset.recipeId);
+}
+
+function recipeThumbHtml(recipe) {
+  const title = recipe.title || "レシピ";
+  if (!recipe.image_url) {
+    return `<div class="thumb thumb-placeholder" aria-hidden="true"><span>写真なし</span></div>`;
+  }
+  return `
+    <div class="thumb-frame">
+      <img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="${escapeAttribute(title)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
+      <span class="thumb-fallback">写真なし</span>
+    </div>
+  `;
+}
+
+function photoHeroHtml(imageUrl, title) {
+  if (!imageUrl) {
+    return `<div class="hero-photo photo-placeholder" aria-hidden="true"><span>写真なし</span></div>`;
+  }
+  return `
+    <div class="photo-hero-frame">
+      <img class="hero-photo" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(title || "レシピ写真")}" onerror="this.closest('.photo-hero-frame').classList.add('image-missing'); this.remove();">
+      <span class="photo-fallback">写真なし</span>
+    </div>
+  `;
+}
+
+function recipeCardMeta(recipe) {
+  const parts = [];
+  const recipeData = recipe.recipe || {};
+  if (recipeData.cooking_time) parts.push(String(recipeData.cooking_time));
+  const ingredients = String(recipe.ingredients_text || "").split("/").map((item) => item.trim()).filter(Boolean);
+  if (ingredients.length) parts.push(ingredients.slice(0, 2).join(" / "));
+  return parts.join(" ・ ") || "保存したレシピ";
 }
 
 async function openRecipe(recipeId, version = null) {
@@ -422,11 +523,12 @@ async function openRecipe(recipeId, version = null) {
 
 function renderDetail(item, history) {
   const recipe = item.recipe;
-  detailCardEl.classList.remove("hidden");
   detailTitleEl.textContent = recipe.title;
-  detailMetaEl.textContent = `Recipe ID: ${item.recipe_id} / Ver.${item.version} / ${formatDate(item.created_at)}`;
+  const latestVersion = history.length ? Math.max(...history.map((entry) => Number(entry.version) || 0)) : item.version;
+  const isPastVersion = Number(item.version) < latestVersion;
+  detailMetaEl.textContent = `${isPastVersion ? "過去バージョンを表示中 / " : ""}Ver.${item.version} / ${formatDate(item.created_at)}`;
   detailBodyEl.innerHTML = `
-    ${item.image_url ? `<img class="hero-photo" src="${escapeAttribute(item.image_url)}" alt="${escapeAttribute(recipe.title)}">` : ""}
+    ${photoHeroHtml(item.image_url, recipe.title)}
     ${recipeHtml(recipe)}
   `;
   historyListEl.innerHTML = history.length
@@ -437,7 +539,7 @@ function renderDetail(item, history) {
       </button>
     `).join("")
     : `<p class="empty">履歴はありません。</p>`;
-  detailCardEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  showView("detail");
 }
 
 async function handleHistoryClick(event) {
@@ -564,6 +666,16 @@ function tagHtml(value, type = "") {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean)
+    .map((tag) => `<span class="tag ${type}">${escapeHtml(tag)}</span>`)
+    .join("");
+}
+
+function limitedTagHtml(value, type = "", limit = 2) {
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, limit)
     .map((tag) => `<span class="tag ${type}">${escapeHtml(tag)}</span>`)
     .join("");
 }

@@ -286,7 +286,7 @@ async function saveRecipe() {
       } : null
     };
 
-    const result = await postToGas(endpoint, body);
+    const result = await postToGasAndConfirm(endpoint, body, parsed.recipe);
 
     if (!result.ok) throw new Error(result.error || "保存に失敗しました。");
 
@@ -497,78 +497,58 @@ async function requestJson(url, options) {
   }
 }
 
-function postToGas(endpoint, payload) {
-  return new Promise((resolve, reject) => {
-    const token = `recipe-vault-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const iframeName = `${token}-frame`;
-    const iframe = document.createElement("iframe");
-    const form = document.createElement("form");
-    const payloadInput = document.createElement("textarea");
-    const tokenInput = document.createElement("input");
-    const modeInput = document.createElement("input");
-    const timeout = window.setTimeout(cleanupWithTimeout, 45000);
+async function postToGasAndConfirm(endpoint, payload, recipe) {
+  const formBody = new URLSearchParams();
+  formBody.set("payload", JSON.stringify(payload));
+  formBody.set("response_mode", "none");
 
-    iframe.name = iframeName;
-    iframe.className = "hidden";
-    iframe.setAttribute("aria-hidden", "true");
-
-    form.method = "POST";
-    form.action = endpoint;
-    form.target = iframeName;
-    form.enctype = "application/x-www-form-urlencoded";
-    form.className = "hidden";
-
-    payloadInput.name = "payload";
-    payloadInput.value = JSON.stringify(payload);
-
-    tokenInput.type = "hidden";
-    tokenInput.name = "request_token";
-    tokenInput.value = token;
-
-    modeInput.type = "hidden";
-    modeInput.name = "response_mode";
-    modeInput.value = "postMessage";
-
-    form.append(payloadInput, tokenInput, modeInput);
-    document.body.append(iframe, form);
-    window.addEventListener("message", handleMessage);
-    form.submit();
-
-    function handleMessage(event) {
-      const data = parseMessageData(event.data);
-      if (!data || data.source !== "recipe-vault-gas" || data.request_token !== token) return;
-      cleanup();
-      if (data.payload && data.payload.ok) {
-        resolve(data.payload);
-      } else {
-        reject(new Error((data.payload && data.payload.error) || "保存に失敗しました。"));
-      }
-    }
-
-    function cleanupWithTimeout() {
-      cleanup();
-      reject(new Error("保存結果を受信できませんでした。通信状態を確認し、一覧を再読み込みしてください。"));
-    }
-
-    function cleanup() {
-      window.clearTimeout(timeout);
-      window.removeEventListener("message", handleMessage);
-      form.remove();
-      iframe.remove();
-    }
+  await fetch(endpoint, {
+    method: "POST",
+    mode: "no-cors",
+    body: formBody
   });
+
+  return await waitForSavedRecipe(endpoint, recipe);
 }
 
-function parseMessageData(data) {
-  if (typeof data === "string") {
-    try {
-      return JSON.parse(data);
-    } catch (error) {
-      return null;
+async function waitForSavedRecipe(endpoint, recipe) {
+  const startedAt = Date.now();
+  const existingRecipeId = recipe.recipe_id || "";
+  const expectedTitle = recipe.title || "";
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await delay(attempt < 3 ? 1200 : 2200);
+    const result = await requestJson(`${endpoint}?action=listRecipes&_=${Date.now()}`);
+    if (!result.ok) throw new Error(result.error || "保存確認に失敗しました。");
+
+    const items = result.items || [];
+    const matched = existingRecipeId
+      ? items.find((item) => item.recipe_id === existingRecipeId)
+      : items.find((item) => item.title === expectedTitle && isRecent(item.created_at, startedAt));
+
+    if (matched) {
+      recipes = items;
+      renderRecipeList();
+      return {
+        ok: true,
+        recipe_id: matched.recipe_id,
+        version: matched.version
+      };
     }
   }
-  if (data && typeof data === "object") return data;
-  return null;
+
+  throw new Error("保存確認がタイムアウトしました。少し待ってから再読み込みしてください。");
+}
+
+function isRecent(value, startedAt) {
+  if (!value) return true;
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return true;
+  return time >= startedAt - 60000;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function fileToDataUrl(file) {

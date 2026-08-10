@@ -10,11 +10,9 @@
 </head>
 <body>
   <header class="app-header">
-    <div>
-      <p class="eyebrow">Personal Food Platform</p>
-      <h1>Food Platform</h1>
-      <p>作った料理、また作りたいレシピ、行きたい店を自分の食の棚に残します。</p>
-    </div>
+    <button id="headerBackBtn" type="button" class="header-back hidden" aria-label="戻る">‹</button>
+    <h1 id="appTitle">レシピ台帳</h1>
+    <button id="overflowMenuBtn" type="button" class="header-menu" aria-label="メニュー">…</button>
   </header>
 
   <main class="container">
@@ -130,7 +128,7 @@
 
       <div id="detailBody" class="detail-body"></div>
 
-      <details class="utility-drawer detail-tools">
+      <details id="detailTools" class="utility-drawer detail-tools menu-only">
         <summary>GPT相談・履歴</summary>
         <div class="drawer-body">
           <div class="button-row">
@@ -185,6 +183,19 @@
           <small>ChatGPTのRestaurant JSONを貼り付ける</small>
         </button>
       </div>
+    </div>
+  </div>
+
+  <div id="overflowMenu" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="overflowMenuTitle">
+    <div class="modal-panel menu-panel">
+      <div class="section-head modal-head">
+        <div>
+          <p class="eyebrow">Menu</p>
+          <h2 id="overflowMenuTitle">メニュー</h2>
+        </div>
+        <button id="closeOverflowMenuBtn" type="button" class="icon-button" aria-label="閉じる">×</button>
+      </div>
+      <div id="overflowMenuList" class="menu-action-list"></div>
     </div>
   </div>
 

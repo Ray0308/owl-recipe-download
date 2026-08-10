@@ -161,9 +161,49 @@ h3 {
 }
 
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
   width: min(100%, var(--page-max));
+  min-height: calc(54px + env(safe-area-inset-top));
   margin: 0 auto;
-  padding: max(var(--space-5), env(safe-area-inset-top)) var(--space-4) var(--space-2);
+  padding: env(safe-area-inset-top) var(--space-3) 0;
+  background: rgba(251, 248, 241, .92);
+  backdrop-filter: blur(14px);
+}
+
+.app-header h1 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: var(--weight-bold);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.header-back,
+.header-menu {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.header-back {
+  font-size: 30px;
+  font-weight: var(--weight-regular);
+}
+
+.header-menu {
+  justify-self: end;
 }
 
 .eyebrow {
@@ -361,6 +401,11 @@ h3 {
   margin-top: calc(var(--space-3) * -1);
 }
 
+.form-help,
+.menu-only {
+  display: none;
+}
+
 .content-section {
   display: grid;
   gap: var(--space-4);
@@ -481,8 +526,9 @@ input[type="search"]:focus {
 .recipe-item,
 .recipe-card,
 .restaurant-card {
+  position: relative;
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: 78px minmax(0, 1fr) 18px;
   gap: var(--space-3);
   align-items: center;
   border-top: var(--border-hairline);
@@ -491,6 +537,15 @@ input[type="search"]:focus {
   background: transparent;
   cursor: pointer;
   transition: background-color .18s ease, transform .18s ease, opacity .28s ease;
+}
+
+.recipe-item::after,
+.restaurant-card::after {
+  content: "›";
+  justify-self: end;
+  color: var(--color-muted);
+  font-size: 26px;
+  line-height: 1;
 }
 
 .recipe-item:first-child,
@@ -559,7 +614,7 @@ input[type="search"]:focus {
 }
 
 .thumb-frame {
-  width: 84px;
+  width: 78px;
   aspect-ratio: 1;
 }
 
@@ -930,6 +985,32 @@ input[type="search"]:focus {
   font-weight: var(--weight-regular);
 }
 
+.menu-panel {
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+}
+
+.menu-action-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.menu-action-list button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: 58px;
+  border-color: var(--color-line-soft);
+  background: var(--color-surface);
+  text-align: left;
+}
+
+.menu-action-list button::after {
+  content: "›";
+  color: var(--color-muted);
+  font-size: 22px;
+}
+
 .history-title {
   margin-top: var(--space-6);
 }
@@ -968,7 +1049,7 @@ input[type="search"]:focus {
 
   .recipe-card,
   .restaurant-card {
-    grid-template-columns: 88px 1fr;
+    grid-template-columns: 78px 1fr 18px;
   }
 
   .card-photo {

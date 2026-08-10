@@ -129,6 +129,12 @@ const quickFiltersEl = $("quickFilters");
 const cookingModeModalEl = $("cookingModeModal");
 const cookingStepMetaEl = $("cookingStepMeta");
 const cookingStepTextEl = $("cookingStepText");
+const appTitleEl = $("appTitle");
+const headerBackBtnEl = $("headerBackBtn");
+const overflowMenuBtnEl = $("overflowMenuBtn");
+const overflowMenuEl = $("overflowMenu");
+const overflowMenuListEl = $("overflowMenuList");
+const detailToolsEl = $("detailTools");
 
 let recipes = [];
 let currentDetail = null;
@@ -138,6 +144,7 @@ let activeFilters = [];
 let cookingSteps = [];
 let cookingStepIndex = 0;
 let wakeLock = null;
+let currentView = "recipes";
 
 $("pasteBtn").addEventListener("click", pasteFromClipboard);
 $("previewBtn").addEventListener("click", renderPreview);
@@ -163,6 +170,13 @@ $("addRestaurantBtn").addEventListener("click", () => {
 $("placesNavBtn").addEventListener("click", () => {
   showView("places");
 });
+headerBackBtnEl.addEventListener("click", handleHeaderBack);
+overflowMenuBtnEl.addEventListener("click", openOverflowMenu);
+$("closeOverflowMenuBtn").addEventListener("click", closeOverflowMenu);
+overflowMenuEl.addEventListener("click", (event) => {
+  if (event.target === overflowMenuEl) closeOverflowMenu();
+});
+overflowMenuListEl.addEventListener("click", handleOverflowMenuAction);
 searchInputEl.addEventListener("input", renderAllLists);
 quickFiltersEl.addEventListener("click", handleQuickFilterClick);
 $("closeCookingModeBtn").addEventListener("click", closeCookingMode);
@@ -195,6 +209,7 @@ loadRecipes();
 loadRestaurants();
 
 function showView(view) {
+  currentView = view;
   const isAddRecipe = view === "add-recipe";
   const isAddRestaurant = view === "add-restaurant";
   const isDetail = view === "detail";
@@ -212,6 +227,7 @@ function showView(view) {
   restaurantDetailCardEl.classList.toggle("hidden", !isRestaurantDetail);
 
   setCurrentNav(view);
+  updateAppChrome(view);
 
   const target = isAddRecipe
     ? recipeFormSectionEl
@@ -234,6 +250,81 @@ function setCurrentNav(view) {
   ["recipesNavBtn", "placesNavBtn"].forEach((id) => $(id).removeAttribute("aria-current"));
   if (view === "recipes" || view === "detail") $("recipesNavBtn").setAttribute("aria-current", "page");
   else if (view === "places" || view === "restaurant-detail") $("placesNavBtn").setAttribute("aria-current", "page");
+}
+
+function updateAppChrome(view) {
+  const titleMap = {
+    "recipes": "レシピ台帳",
+    "places": "お店台帳",
+    "add-recipe": "レシピ登録",
+    "add-restaurant": "お店登録",
+    "detail": "レシピ詳細",
+    "restaurant-detail": "お店詳細"
+  };
+  appTitleEl.textContent = titleMap[view] || "Food Platform";
+  headerBackBtnEl.classList.toggle("hidden", view === "recipes" || view === "places");
+  overflowMenuBtnEl.classList.toggle("hidden", overflowActions(view).length === 0);
+}
+
+function handleHeaderBack() {
+  if (currentView === "restaurant-detail" || currentView === "add-restaurant") {
+    showView("places");
+    return;
+  }
+  showView("recipes");
+}
+
+function overflowActions(view = currentView) {
+  if (view === "add-recipe") {
+    return [{ id: "recipe-prompt", label: "GPT用プロンプトをコピー" }];
+  }
+  if (view === "add-restaurant") {
+    return [{ id: "restaurant-prompt", label: "お店用GPTプロンプトをコピー" }];
+  }
+  if (view === "detail") {
+    return [
+      { id: "consult", label: "GPTに相談用コピー" },
+      { id: "recipe-prompt", label: "GPT用プロンプトをコピー" },
+      { id: "cooking-mode", label: "調理モード" },
+      { id: "history", label: "改善履歴を見る" }
+    ];
+  }
+  return [];
+}
+
+function openOverflowMenu() {
+  const actions = overflowActions();
+  if (!actions.length) return;
+  overflowMenuListEl.innerHTML = actions
+    .map((action) => `<button type="button" data-menu-action="${escapeAttribute(action.id)}">${escapeHtml(action.label)}</button>`)
+    .join("");
+  overflowMenuEl.classList.remove("hidden");
+  animateModal(overflowMenuEl);
+}
+
+function closeOverflowMenu() {
+  overflowMenuEl.classList.add("hidden");
+}
+
+function handleOverflowMenuAction(event) {
+  const button = event.target.closest("[data-menu-action]");
+  if (!button) return;
+  const action = button.dataset.menuAction;
+  closeOverflowMenu();
+
+  if (action === "recipe-prompt") {
+    copyText(BASE_GPT_PROMPT, "GPT用プロンプトをコピーしました。");
+  } else if (action === "restaurant-prompt") {
+    copyText(BASE_RESTAURANT_GPT_PROMPT, "お店用GPTプロンプトをコピーしました。");
+  } else if (action === "consult") {
+    copyConsultPrompt();
+  } else if (action === "cooking-mode") {
+    openCookingMode();
+  } else if (action === "history" && detailToolsEl) {
+    detailToolsEl.classList.remove("menu-only");
+    detailToolsEl.open = true;
+    detailToolsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function openAddModal() {
@@ -996,6 +1087,10 @@ function renderDetail(item, history) {
       </button>
     `).join("")
     : `<p class="empty">履歴はありません。</p>`;
+  if (detailToolsEl) {
+    detailToolsEl.classList.add("menu-only");
+    detailToolsEl.open = false;
+  }
   showView("detail");
 }
 

@@ -261,7 +261,7 @@ function updateAppChrome(view) {
     "detail": "レシピ詳細",
     "restaurant-detail": "お店詳細"
   };
-  appTitleEl.textContent = titleMap[view] || "Food Platform";
+  appTitleEl.textContent = titleMap[view] || "Recipe Vault";
   headerBackBtnEl.classList.toggle("hidden", view === "recipes" || view === "places");
   overflowMenuBtnEl.classList.toggle("hidden", overflowActions(view).length === 0);
 }
@@ -831,10 +831,12 @@ function renderRecipeList() {
 }
 
 function recipeCardHtml(recipe) {
+  const archiveNo = archiveNumber(recipe.recipe_id, "R");
   return `
     <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
       ${recipeThumbHtml(recipe)}
       <div class="recipe-item-body">
+        <span class="archive-no">RECIPE ${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(recipe.title || "")}</h3>
         <p>${escapeHtml(recipeCardMeta(recipe))}</p>
         <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
@@ -895,10 +897,12 @@ function handleQuickFilterClick(event) {
 
 function restaurantCardHtml(restaurant) {
   const meta = restaurant.meta || {};
+  const archiveNo = archiveNumber(restaurant.restaurant_id, "P");
   return `
     <article class="restaurant-card" data-restaurant-id="${escapeAttribute(restaurant.restaurant_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((restaurant.name || "飲食店") + "を開く")}">
       ${restaurantThumbHtml(restaurant)}
       <div class="restaurant-card-body">
+        <span class="archive-no">RESTAURANT ${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(restaurant.name || "")}</h3>
         <p>${escapeHtml(restaurantCardMeta(restaurant))}</p>
         <div class="tags">${statusTagHtml(meta)}${limitedTagHtml(restaurant.genres, "", 1)}${limitedTagHtml(restaurant.mood_tags, "mood", 1)}</div>
@@ -909,13 +913,14 @@ function restaurantCardHtml(restaurant) {
 
 function restaurantThumbHtml(restaurant) {
   const name = restaurant.name || "飲食店";
+  const archiveNo = archiveNumber(restaurant.restaurant_id, "P");
   if (!restaurant.image_url) {
-    return noImageHtml("Place", "thumb");
+    return noImageHtml("RESTAURANT ARCHIVE", "thumb", archiveNo);
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(restaurant.image_url)}" alt="${escapeAttribute(name)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("Place")}
+      ${noImageLabel("RESTAURANT ARCHIVE", "thumb-fallback", archiveNo)}
     </div>
   `;
 }
@@ -961,35 +966,43 @@ async function handleRestaurantListKeydown(event) {
 
 function recipeThumbHtml(recipe) {
   const title = recipe.title || "レシピ";
+  const archiveNo = archiveNumber(recipe.recipe_id, "R");
   if (!recipe.image_url) {
-    return noImageHtml("Recipe", "thumb");
+    return noImageHtml("RECIPE ARCHIVE", "thumb", archiveNo);
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="${escapeAttribute(title)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("Recipe")}
+      ${noImageLabel("RECIPE ARCHIVE", "thumb-fallback", archiveNo)}
     </div>
   `;
 }
 
-function photoHeroHtml(imageUrl, title) {
+function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE ARCHIVE", archiveNo = "") {
   if (!imageUrl) {
-    return noImageHtml(title || "Recipe", "hero-photo");
+    return noImageHtml(archiveLabel, "hero-photo", archiveNo || title || "");
   }
   return `
     <div class="photo-hero-frame">
       <img class="hero-photo" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(title || "レシピ写真")}" onerror="this.closest('.photo-hero-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel(title || "Recipe", "photo-fallback")}
+      ${noImageLabel(archiveLabel, "photo-fallback", archiveNo)}
     </div>
   `;
 }
 
-function noImageHtml(label, className) {
-  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label)}</div>`;
+function noImageHtml(label, className, archiveNo = "") {
+  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label, "thumb-fallback", archiveNo)}</div>`;
 }
 
-function noImageLabel(label, className = "thumb-fallback") {
-  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em><small>${escapeHtml(label)}</small></span>`;
+function noImageLabel(label, className = "thumb-fallback", archiveNo = "") {
+  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em><small>${escapeHtml(label)}</small>${archiveNo ? `<b>${escapeHtml(archiveNo)}</b>` : ""}</span>`;
+}
+
+function archiveNumber(id, prefix = "R") {
+  const raw = String(id || "").trim();
+  const digits = raw.match(/\d+/g)?.join("") || "";
+  if (digits) return `No.${digits.slice(-4).padStart(3, "0")}`;
+  return `${prefix}-No.---`;
 }
 
 function recipeCardMeta(recipe) {
@@ -1037,10 +1050,17 @@ async function openRestaurant(restaurantId) {
 function renderRestaurantDetail(item) {
   const restaurant = item.restaurant || item;
   const meta = item.meta || {};
+  const archiveNo = archiveNumber(item.restaurant_id || restaurant.restaurant_id, "P");
   restaurantDetailTitleEl.textContent = restaurant.name;
   restaurantDetailMetaEl.textContent = [restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / ");
   restaurantDetailBodyEl.innerHTML = `
-    ${photoHeroHtml(item.image_url, restaurant.name)}
+    <div class="archive-kicker">RESTAURANT ARCHIVE / ${escapeHtml(archiveNo)}</div>
+    ${photoHeroHtml(item.image_url, restaurant.name, "RESTAURANT ARCHIVE", archiveNo)}
+    <div class="detail-title-block">
+      <span>${escapeHtml(archiveNo)}</span>
+      <h2>${escapeHtml(restaurant.name || "")}</h2>
+      <p>${escapeHtml([restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / "))}</p>
+    </div>
     <div class="restaurant-actions">
       <button type="button" class="primary-button" data-restaurant-action="visit">今日行った</button>
       <details class="utility-drawer inline-tools">
@@ -1060,12 +1080,19 @@ function renderRestaurantDetail(item) {
 function renderDetail(item, history) {
   const recipe = item.recipe;
   const meta = item.meta || {};
+  const archiveNo = archiveNumber(item.recipe_id, "R");
   detailTitleEl.textContent = recipe.title;
   const latestVersion = history.length ? Math.max(...history.map((entry) => Number(entry.version) || 0)) : item.version;
   const isPastVersion = Number(item.version) < latestVersion;
   detailMetaEl.textContent = `${isPastVersion ? "過去バージョンを表示中 / " : ""}Ver.${item.version} / ${formatDate(item.created_at)}`;
   detailBodyEl.innerHTML = `
-    ${photoHeroHtml(item.image_url, recipe.title)}
+    <div class="archive-kicker">RECIPE ARCHIVE / ${escapeHtml(archiveNo)}</div>
+    ${photoHeroHtml(item.image_url, recipe.title, "RECIPE ARCHIVE", archiveNo)}
+    <div class="detail-title-block">
+      <span>${escapeHtml(archiveNo)} / Ver.${escapeHtml(item.version)}</span>
+      <h2>${escapeHtml(recipe.title || "")}</h2>
+      <p>${escapeHtml([recipe.servings, recipe.cooking_time].filter(Boolean).join(" / "))}</p>
+    </div>
     <div class="recipe-actions">
       <button type="button" class="primary-button" data-recipe-action="cook">今日作った</button>
       <details class="utility-drawer inline-tools">
@@ -1144,16 +1171,16 @@ function recipeHtml(recipe) {
         <div><span>人数</span><strong>${escapeHtml(recipe.servings || "未設定")}</strong></div>
         <div><span>調理時間</span><strong>${escapeHtml(recipe.cooking_time || "未設定")}</strong></div>
       </div>
-      <h3>材料</h3>
+      <h3><span>INGREDIENTS</span>材料</h3>
       <ul>${recipe.ingredients.map((item) => `<li><strong>${escapeHtml(item.name)}</strong> ${escapeHtml(item.amount)}</li>`).join("")}</ul>
-      <h3>作り方</h3>
+      <h3><span>METHOD</span>作り方</h3>
       <ol>${recipe.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
-      <h3>タグ</h3>
+      <h3><span>INDEX</span>タグ</h3>
       <div class="tags">${tagHtml(recipe.tags)}</div>
-      <h3>気分タグ</h3>
+      <h3><span>MOOD</span>気分タグ</h3>
       <div class="tags">${tagHtml(recipe.mood_tags, "mood")}</div>
-      ${recipe.notes ? `<p><strong>メモ:</strong> ${escapeHtml(recipe.notes)}</p>` : ""}
-      ${recipe.improvements ? `<p><strong>次回改善点:</strong> ${escapeHtml(recipe.improvements)}</p>` : ""}
+      ${recipe.notes ? `<section class="note-block"><h3><span>NOTES</span>メモ</h3><p>${escapeHtml(recipe.notes)}</p></section>` : ""}
+      ${recipe.improvements ? `<section class="note-block"><h3><span>NEXT</span>次回改善点</h3><p>${escapeHtml(recipe.improvements)}</p></section>` : ""}
     </div>
   `;
 }
@@ -1169,7 +1196,7 @@ function restaurantHtml(restaurant, item = {}) {
         <div><span>最終訪問日</span><strong>${escapeHtml(formatDate(meta.last_visited_at) || "未記録")}</strong></div>
         <div><span>訪問回数</span><strong>${escapeHtml(String(meta.visit_count || 0))}</strong></div>
       </div>
-      <h3>店舗情報</h3>
+      <h3><span>PLACE FILE</span>店舗情報</h3>
       <dl class="info-list">
         ${restaurant.area ? `<div><dt>エリア</dt><dd>${escapeHtml(restaurant.area)}</dd></div>` : ""}
         ${restaurant.address ? `<div><dt>住所</dt><dd>${escapeHtml(restaurant.address)}</dd></div>` : ""}
@@ -1180,11 +1207,11 @@ function restaurantHtml(restaurant, item = {}) {
         ${restaurant.url ? `<a class="link-button" href="${escapeAttribute(restaurant.url)}" target="_blank" rel="noopener">店舗ページ</a>` : ""}
         ${restaurant.phone ? `<a class="link-button" href="tel:${escapeAttribute(restaurant.phone)}">電話</a>` : ""}
       </div>
-      <h3>ジャンル</h3>
+      <h3><span>GENRE</span>ジャンル</h3>
       <div class="tags">${arrayTagHtml(restaurant.genres)}</div>
-      <h3>タグ</h3>
+      <h3><span>INDEX</span>タグ</h3>
       <div class="tags">${arrayTagHtml(restaurant.tags)}${arrayTagHtml(restaurant.mood_tags, "mood")}</div>
-      ${restaurant.notes ? `<p><strong>メモ:</strong> ${escapeHtml(restaurant.notes)}</p>` : ""}
+      ${restaurant.notes ? `<section class="note-block"><h3><span>NOTES</span>メモ</h3><p>${escapeHtml(restaurant.notes)}</p></section>` : ""}
     </div>
   `;
 }

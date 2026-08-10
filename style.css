@@ -474,7 +474,7 @@ input[type="search"]:focus {
 .restaurant-list,
 .history-list {
   display: grid;
-  gap: var(--space-5);
+  gap: 0;
   margin-top: var(--space-4);
 }
 
@@ -482,24 +482,31 @@ input[type="search"]:focus {
 .recipe-card,
 .restaurant-card {
   display: grid;
-  gap: var(--space-2);
-  align-items: stretch;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
   border-top: var(--border-hairline);
   border-radius: 0;
-  padding: var(--space-5) 0 0;
+  padding: var(--space-3) 0;
   background: transparent;
   cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease, opacity .28s ease;
 }
 
 .recipe-item:first-child,
 .recipe-card:first-child,
 .restaurant-card:first-child {
   border-top: 0;
-  padding-top: 0;
 }
 
-.recipe-item:not(:has(.thumb)) {
-  grid-template-columns: 1fr;
+.recipe-item:active,
+.restaurant-card:active {
+  transform: scale(.99);
+}
+
+.recipe-item:hover,
+.restaurant-card:hover {
+  background: rgba(255, 253, 248, .58);
 }
 
 .recipe-item h3,
@@ -507,9 +514,9 @@ input[type="search"]:focus {
 .restaurant-card h3 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(21px, 6vw, 28px);
+  font-size: clamp(18px, 5vw, 22px);
   font-weight: var(--weight-medium);
-  line-height: 1.12;
+  line-height: 1.18;
   overflow-wrap: anywhere;
 }
 
@@ -522,13 +529,21 @@ input[type="search"]:focus {
 .recipe-item-body,
 .restaurant-card-body {
   display: grid;
-  gap: var(--space-2);
+  min-width: 0;
+  gap: 6px;
+}
+
+.recipe-item-body p,
+.restaurant-card-body p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .thumb,
 .card-photo {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 1;
   border-radius: var(--radius-sm);
   object-fit: cover;
   background: var(--color-gold-soft);
@@ -544,7 +559,8 @@ input[type="search"]:focus {
 }
 
 .thumb-frame {
-  aspect-ratio: 16 / 10;
+  width: 84px;
+  aspect-ratio: 1;
 }
 
 .photo-hero-frame {
@@ -590,7 +606,7 @@ input[type="search"]:focus {
 .photo-fallback em {
   display: block;
   font-style: normal;
-  font-size: var(--text-xs);
+  font-size: 10px;
   font-weight: var(--weight-bold);
   letter-spacing: .08em;
 }
@@ -602,7 +618,7 @@ input[type="search"]:focus {
   margin-top: var(--space-1);
   color: var(--color-muted);
   font-family: var(--font-display);
-  font-size: var(--text-lg);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
 }
 
@@ -765,6 +781,21 @@ input[type="search"]:focus {
   overflow-wrap: anywhere;
 }
 
+.recipe-item .tags,
+.restaurant-card .tags {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.recipe-item .tag,
+.restaurant-card .tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tag.mood,
 .filter-chip.mood,
 .filter-chip.is-selected {
@@ -793,9 +824,9 @@ input[type="search"]:focus {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 64px 1fr;
   gap: var(--space-2);
-  padding: var(--space-2) 88px max(var(--space-2), env(safe-area-inset-bottom)) var(--space-4);
+  padding: var(--space-2) var(--space-4) max(var(--space-2), env(safe-area-inset-bottom));
   border-top: var(--border-hairline);
   background: rgba(251, 248, 241, .94);
   backdrop-filter: blur(14px);
@@ -813,17 +844,14 @@ input[type="search"]:focus {
   color: var(--color-red);
 }
 
-.floating-add-button {
-  position: fixed;
-  right: max(var(--space-4), env(safe-area-inset-right));
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  z-index: 25;
+.bottom-navigation .add-button {
   width: 58px;
   min-width: 58px;
   height: 58px;
   min-height: 58px;
   padding: 0;
   border: 0;
+  place-self: center;
   border-radius: 50%;
   background: var(--color-red);
   color: #fffdf8;

@@ -227,6 +227,7 @@ function showView(view) {
               ? restaurantDetailCardEl
               : recipesSectionEl;
   target.scrollIntoView({ behavior: "smooth", block: "start" });
+  animateView(target);
 }
 
 function setCurrentNav(view) {
@@ -237,6 +238,7 @@ function setCurrentNav(view) {
 
 function openAddModal() {
   addModalEl.classList.remove("hidden");
+  animateModal(addModalEl);
 }
 
 function closeAddModal() {
@@ -734,6 +736,7 @@ function renderRecipeList() {
     : `<p class="empty">該当するレシピはありません。</p>`;
 
   recipeListEl.innerHTML = markup;
+  animateLedgerRows(recipeListEl);
 }
 
 function recipeCardHtml(recipe) {
@@ -774,6 +777,7 @@ function renderRestaurantLists() {
   restaurantListEl.innerHTML = filtered.length
     ? filtered.map(restaurantCardHtml).join("")
     : `<p class="empty">保存済みのお店はまだありません。</p>`;
+  animateLedgerRows(restaurantListEl);
 }
 
 function renderQuickFilters() {
@@ -1295,6 +1299,50 @@ function formatDate(value) {
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.classList.toggle("error", Boolean(isError));
+}
+
+function shouldReduceMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function animateView(element) {
+  if (!element || shouldReduceMotion() || !element.animate) return;
+  element.animate([
+    { opacity: 0, transform: "translateY(8px)" },
+    { opacity: 1, transform: "translateY(0)" }
+  ], {
+    duration: 220,
+    easing: "cubic-bezier(.2,.7,.2,1)"
+  });
+}
+
+function animateLedgerRows(container) {
+  if (!container || shouldReduceMotion() || !container.animate) return;
+  const rows = Array.from(container.querySelectorAll(".recipe-item, .restaurant-card")).slice(0, 12);
+  rows.forEach((row, index) => {
+    row.animate([
+      { opacity: 0, transform: "translateY(10px)" },
+      { opacity: 1, transform: "translateY(0)" }
+    ], {
+      duration: 260,
+      delay: Math.min(index * 28, 180),
+      easing: "cubic-bezier(.2,.7,.2,1)",
+      fill: "both"
+    });
+  });
+}
+
+function animateModal(modal) {
+  if (!modal || shouldReduceMotion() || !modal.animate) return;
+  const panel = modal.querySelector(".modal-panel");
+  if (!panel || !panel.animate) return;
+  panel.animate([
+    { opacity: 0, transform: "translateY(18px) scale(.98)" },
+    { opacity: 1, transform: "translateY(0) scale(1)" }
+  ], {
+    duration: 240,
+    easing: "cubic-bezier(.2,.7,.2,1)"
+  });
 }
 
 function escapeHtml(value) {

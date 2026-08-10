@@ -219,6 +219,13 @@ function showView(view) {
   const showLedgerSearch = isRecipes || isPlaces;
 
   ledgerSearchSectionEl.classList.toggle("hidden", !showLedgerSearch);
+  if (showLedgerSearch) {
+    const activeSection = isPlaces ? placesSectionEl : recipesSectionEl;
+    const sectionHead = activeSection.querySelector(".section-head");
+    if (sectionHead && ledgerSearchSectionEl.previousElementSibling !== sectionHead) {
+      sectionHead.after(ledgerSearchSectionEl);
+    }
+  }
   recipesSectionEl.classList.toggle("hidden", !isRecipes);
   recipeFormSectionEl.classList.toggle("hidden", !isAddRecipe);
   restaurantFormSectionEl.classList.toggle("hidden", !isAddRestaurant);
@@ -253,15 +260,7 @@ function setCurrentNav(view) {
 }
 
 function updateAppChrome(view) {
-  const titleMap = {
-    "recipes": "レシピ台帳",
-    "places": "お店台帳",
-    "add-recipe": "レシピ登録",
-    "add-restaurant": "お店登録",
-    "detail": "レシピ詳細",
-    "restaurant-detail": "お店詳細"
-  };
-  appTitleEl.textContent = titleMap[view] || "Recipe Vault";
+  appTitleEl.textContent = "Recipe Vault";
   headerBackBtnEl.classList.toggle("hidden", view === "recipes" || view === "places");
   overflowMenuBtnEl.classList.toggle("hidden", overflowActions(view).length === 0);
 }
@@ -275,6 +274,12 @@ function handleHeaderBack() {
 }
 
 function overflowActions(view = currentView) {
+  if (view === "recipes") {
+    return [{ id: "reload-recipes", label: "レシピを再読み込み" }];
+  }
+  if (view === "places") {
+    return [{ id: "reload-restaurants", label: "お店を再読み込み" }];
+  }
   if (view === "add-recipe") {
     return [{ id: "recipe-prompt", label: "GPT用プロンプトをコピー" }];
   }
@@ -316,6 +321,10 @@ function handleOverflowMenuAction(event) {
     copyText(BASE_GPT_PROMPT, "GPT用プロンプトをコピーしました。");
   } else if (action === "restaurant-prompt") {
     copyText(BASE_RESTAURANT_GPT_PROMPT, "お店用GPTプロンプトをコピーしました。");
+  } else if (action === "reload-recipes") {
+    loadRecipes();
+  } else if (action === "reload-restaurants") {
+    loadRestaurants();
   } else if (action === "consult") {
     copyConsultPrompt();
   } else if (action === "cooking-mode") {
@@ -836,7 +845,7 @@ function recipeCardHtml(recipe) {
     <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
       ${recipeThumbHtml(recipe)}
       <div class="recipe-item-body">
-        <span class="archive-no">RECIPE ${escapeHtml(archiveNo)}</span>
+        <span class="archive-no">${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(recipe.title || "")}</h3>
         <p>${escapeHtml(recipeCardMeta(recipe))}</p>
         <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
@@ -875,11 +884,7 @@ function renderRestaurantLists() {
 
 function renderQuickFilters() {
   const baseFilters = ["お気に入り", "簡単", "さっぱり", "がっつり", "酒に合う", "行きたい", "また行きたい"];
-  const dynamicFilters = [
-    ...recipes.flatMap((recipe) => splitTags(recipe.tags).concat(splitTags(recipe.mood_tags))).slice(0, 24),
-    ...restaurants.flatMap((restaurant) => splitTags(restaurant.area).concat(splitTags(restaurant.genres), splitTags(restaurant.mood_tags))).slice(0, 24)
-  ];
-  const filters = Array.from(new Set(baseFilters.concat(dynamicFilters))).slice(0, 18);
+  const filters = Array.from(new Set(baseFilters)).slice(0, 8);
   quickFiltersEl.innerHTML = filters.map((filter) => `
     <button type="button" class="filter-chip ${activeFilters.includes(filter) ? "is-selected" : ""}" data-filter="${escapeAttribute(filter)}" aria-pressed="${activeFilters.includes(filter) ? "true" : "false"}">${escapeHtml(filter)}</button>
   `).join("");
@@ -902,7 +907,7 @@ function restaurantCardHtml(restaurant) {
     <article class="restaurant-card" data-restaurant-id="${escapeAttribute(restaurant.restaurant_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((restaurant.name || "飲食店") + "を開く")}">
       ${restaurantThumbHtml(restaurant)}
       <div class="restaurant-card-body">
-        <span class="archive-no">RESTAURANT ${escapeHtml(archiveNo)}</span>
+        <span class="archive-no">${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(restaurant.name || "")}</h3>
         <p>${escapeHtml(restaurantCardMeta(restaurant))}</p>
         <div class="tags">${statusTagHtml(meta)}${limitedTagHtml(restaurant.genres, "", 1)}${limitedTagHtml(restaurant.mood_tags, "mood", 1)}</div>
@@ -915,12 +920,12 @@ function restaurantThumbHtml(restaurant) {
   const name = restaurant.name || "飲食店";
   const archiveNo = archiveNumber(restaurant.restaurant_id, "P");
   if (!restaurant.image_url) {
-    return noImageHtml("RESTAURANT ARCHIVE", "thumb", archiveNo);
+    return noImageHtml("RESTAURANT", "thumb", archiveNo);
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(restaurant.image_url)}" alt="${escapeAttribute(name)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("RESTAURANT ARCHIVE", "thumb-fallback", archiveNo)}
+      ${noImageLabel("RESTAURANT", "thumb-fallback", archiveNo)}
     </div>
   `;
 }
@@ -968,17 +973,17 @@ function recipeThumbHtml(recipe) {
   const title = recipe.title || "レシピ";
   const archiveNo = archiveNumber(recipe.recipe_id, "R");
   if (!recipe.image_url) {
-    return noImageHtml("RECIPE ARCHIVE", "thumb", archiveNo);
+    return noImageHtml("RECIPE", "thumb", archiveNo);
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="${escapeAttribute(title)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("RECIPE ARCHIVE", "thumb-fallback", archiveNo)}
+      ${noImageLabel("RECIPE", "thumb-fallback", archiveNo)}
     </div>
   `;
 }
 
-function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE ARCHIVE", archiveNo = "") {
+function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE", archiveNo = "") {
   if (!imageUrl) {
     return noImageHtml(archiveLabel, "hero-photo", archiveNo || title || "");
   }
@@ -991,11 +996,12 @@ function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE ARCHIVE", archive
 }
 
 function noImageHtml(label, className, archiveNo = "") {
-  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label, "thumb-fallback", archiveNo)}</div>`;
+  const fallbackClass = className.includes("hero") ? "photo-fallback" : "thumb-fallback";
+  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label, fallbackClass, archiveNo)}</div>`;
 }
 
 function noImageLabel(label, className = "thumb-fallback", archiveNo = "") {
-  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em><small>${escapeHtml(label)}</small>${archiveNo ? `<b>${escapeHtml(archiveNo)}</b>` : ""}</span>`;
+  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em>${archiveNo ? `<b>${escapeHtml(archiveNo)}</b>` : `<small>${escapeHtml(label)}</small>`}</span>`;
 }
 
 function archiveNumber(id, prefix = "R") {
@@ -1054,8 +1060,7 @@ function renderRestaurantDetail(item) {
   restaurantDetailTitleEl.textContent = restaurant.name;
   restaurantDetailMetaEl.textContent = [restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / ");
   restaurantDetailBodyEl.innerHTML = `
-    <div class="archive-kicker">RESTAURANT ARCHIVE / ${escapeHtml(archiveNo)}</div>
-    ${photoHeroHtml(item.image_url, restaurant.name, "RESTAURANT ARCHIVE", archiveNo)}
+    ${photoHeroHtml(item.image_url, restaurant.name, "RESTAURANT", archiveNo)}
     <div class="detail-title-block">
       <span>${escapeHtml(archiveNo)}</span>
       <h2>${escapeHtml(restaurant.name || "")}</h2>
@@ -1086,8 +1091,7 @@ function renderDetail(item, history) {
   const isPastVersion = Number(item.version) < latestVersion;
   detailMetaEl.textContent = `${isPastVersion ? "過去バージョンを表示中 / " : ""}Ver.${item.version} / ${formatDate(item.created_at)}`;
   detailBodyEl.innerHTML = `
-    <div class="archive-kicker">RECIPE ARCHIVE / ${escapeHtml(archiveNo)}</div>
-    ${photoHeroHtml(item.image_url, recipe.title, "RECIPE ARCHIVE", archiveNo)}
+    ${photoHeroHtml(item.image_url, recipe.title, "RECIPE", archiveNo)}
     <div class="detail-title-block">
       <span>${escapeHtml(archiveNo)} / Ver.${escapeHtml(item.version)}</span>
       <h2>${escapeHtml(recipe.title || "")}</h2>

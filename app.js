@@ -103,7 +103,6 @@ const photoEl = $("photo");
 const previewEl = $("preview");
 const statusEl = $("status");
 const recipeListEl = $("recipeList");
-const homeRecipeListEl = $("homeRecipeList");
 const searchInputEl = $("searchInput");
 const validationPanelEl = $("validationPanel");
 const detailCardEl = $("detailCard");
@@ -111,7 +110,7 @@ const detailTitleEl = $("detailTitle");
 const detailMetaEl = $("detailMeta");
 const detailBodyEl = $("detailBody");
 const historyListEl = $("historyList");
-const homeSectionEl = $("homeSection");
+const ledgerSearchSectionEl = $("ledgerSearchSection");
 const recipesSectionEl = $("recipesSection");
 const recipeFormSectionEl = $("recipeFormSection");
 const addModalEl = $("addModal");
@@ -122,13 +121,11 @@ const restaurantPreviewEl = $("restaurantPreview");
 const restaurantValidationPanelEl = $("restaurantValidationPanel");
 const placesSectionEl = $("placesSection");
 const restaurantListEl = $("restaurantList");
-const homeRestaurantListEl = $("homeRestaurantList");
 const restaurantDetailCardEl = $("restaurantDetailCard");
 const restaurantDetailTitleEl = $("restaurantDetailTitle");
 const restaurantDetailMetaEl = $("restaurantDetailMeta");
 const restaurantDetailBodyEl = $("restaurantDetailBody");
 const quickFiltersEl = $("quickFilters");
-const suggestionListEl = $("suggestionList");
 const cookingModeModalEl = $("cookingModeModal");
 const cookingStepMetaEl = $("cookingStepMeta");
 const cookingStepTextEl = $("cookingStepText");
@@ -152,7 +149,6 @@ $("copyRestaurantPromptBtn").addEventListener("click", () => copyText(BASE_RESTA
 $("copyRecipeBtn").addEventListener("click", copyConsultPrompt);
 $("closeDetailBtn").addEventListener("click", () => showView("recipes"));
 $("closeRestaurantDetailBtn").addEventListener("click", () => showView("places"));
-$("homeNavBtn").addEventListener("click", () => showView("home"));
 $("recipesNavBtn").addEventListener("click", () => showView("recipes"));
 $("addNavBtn").addEventListener("click", openAddModal);
 $("closeAddModalBtn").addEventListener("click", closeAddModal);
@@ -164,16 +160,11 @@ $("addRestaurantBtn").addEventListener("click", () => {
   closeAddModal();
   showView("add-restaurant");
 });
-$("homeAddRecipeBtn").addEventListener("click", () => showView("add-recipe"));
-$("homeAddRestaurantBtn").addEventListener("click", () => showView("add-restaurant"));
 $("placesNavBtn").addEventListener("click", () => {
   showView("places");
 });
 searchInputEl.addEventListener("input", renderAllLists);
 quickFiltersEl.addEventListener("click", handleQuickFilterClick);
-document.querySelectorAll("[data-suggest-kind]").forEach((button) => {
-  button.addEventListener("click", () => renderSuggestions(button.dataset.suggestKind, button.dataset.suggestFilter));
-});
 $("closeCookingModeBtn").addEventListener("click", closeCookingMode);
 $("prevCookingStepBtn").addEventListener("click", () => moveCookingStep(-1));
 $("nextCookingStepBtn").addEventListener("click", () => moveCookingStep(1));
@@ -185,16 +176,10 @@ restaurantPhotoEl.addEventListener("change", () => {
 });
 recipeListEl.addEventListener("click", handleRecipeListClick);
 recipeListEl.addEventListener("keydown", handleRecipeListKeydown);
-homeRecipeListEl.addEventListener("click", handleRecipeListClick);
-homeRecipeListEl.addEventListener("keydown", handleRecipeListKeydown);
 historyListEl.addEventListener("click", handleHistoryClick);
 detailBodyEl.addEventListener("click", handleRecipeDetailAction);
-suggestionListEl.addEventListener("click", handleSuggestionClick);
-suggestionListEl.addEventListener("keydown", handleSuggestionKeydown);
 restaurantListEl.addEventListener("click", handleRestaurantListClick);
 restaurantListEl.addEventListener("keydown", handleRestaurantListKeydown);
-homeRestaurantListEl.addEventListener("click", handleRestaurantListClick);
-homeRestaurantListEl.addEventListener("keydown", handleRestaurantListKeydown);
 $("reloadRestaurantsBtn").addEventListener("click", loadRestaurants);
 $("pasteRestaurantBtn").addEventListener("click", pasteRestaurantFromClipboard);
 $("previewRestaurantBtn").addEventListener("click", renderRestaurantPreview);
@@ -204,6 +189,7 @@ addModalEl.addEventListener("click", (event) => {
   if (event.target === addModalEl) closeAddModal();
 });
 
+showView("recipes");
 handleSaveReturn();
 loadRecipes();
 loadRestaurants();
@@ -215,8 +201,9 @@ function showView(view) {
   const isRecipes = view === "recipes";
   const isPlaces = view === "places";
   const isRestaurantDetail = view === "restaurant-detail";
+  const showLedgerSearch = isRecipes || isPlaces;
 
-  homeSectionEl.classList.toggle("hidden", isAddRecipe || isAddRestaurant || isDetail || isRecipes || isPlaces || isRestaurantDetail);
+  ledgerSearchSectionEl.classList.toggle("hidden", !showLedgerSearch);
   recipesSectionEl.classList.toggle("hidden", !isRecipes);
   recipeFormSectionEl.classList.toggle("hidden", !isAddRecipe);
   restaurantFormSectionEl.classList.toggle("hidden", !isAddRestaurant);
@@ -238,15 +225,14 @@ function showView(view) {
             ? placesSectionEl
             : isRestaurantDetail
               ? restaurantDetailCardEl
-              : homeSectionEl;
+              : recipesSectionEl;
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setCurrentNav(view) {
-  ["homeNavBtn", "recipesNavBtn", "placesNavBtn"].forEach((id) => $(id).removeAttribute("aria-current"));
+  ["recipesNavBtn", "placesNavBtn"].forEach((id) => $(id).removeAttribute("aria-current"));
   if (view === "recipes" || view === "detail") $("recipesNavBtn").setAttribute("aria-current", "page");
   else if (view === "places" || view === "restaurant-detail") $("placesNavBtn").setAttribute("aria-current", "page");
-  else if (view !== "add-recipe" && view !== "add-restaurant" && view !== "detail") $("homeNavBtn").setAttribute("aria-current", "page");
 }
 
 function openAddModal() {
@@ -720,7 +706,6 @@ function renderAllLists() {
   renderQuickFilters();
   renderRecipeList();
   renderRestaurantLists();
-  if (!suggestionListEl.innerHTML.trim()) renderSuggestions("recipe", "なんでも");
 }
 
 function currentQueries() {
@@ -749,9 +734,6 @@ function renderRecipeList() {
     : `<p class="empty">該当するレシピはありません。</p>`;
 
   recipeListEl.innerHTML = markup;
-  homeRecipeListEl.innerHTML = filtered.length
-    ? filtered.slice(0, 3).map(recipeCardHtml).join("")
-    : `<p class="empty">保存済みレシピはまだありません。</p>`;
 }
 
 function recipeCardHtml(recipe) {
@@ -788,10 +770,6 @@ function renderRestaurantLists() {
     ].join(" ").toLowerCase();
     return queries.every((query) => haystack.includes(query));
   });
-
-  homeRestaurantListEl.innerHTML = filtered.length
-    ? filtered.slice(0, 3).map(restaurantCardHtml).join("")
-    : `<p class="empty">保存済みのお店はまだありません。</p>`;
 
   restaurantListEl.innerHTML = filtered.length
     ? filtered.map(restaurantCardHtml).join("")
@@ -884,19 +862,6 @@ async function handleRestaurantListKeydown(event) {
   if (!card) return;
   event.preventDefault();
   await openRestaurant(card.dataset.restaurantId);
-}
-
-async function handleSuggestionClick(event) {
-  const recipeCard = event.target.closest("[data-recipe-id]");
-  if (recipeCard) return openRecipe(recipeCard.dataset.recipeId);
-  const restaurantCard = event.target.closest("[data-restaurant-id]");
-  if (restaurantCard) return openRestaurant(restaurantCard.dataset.restaurantId);
-}
-
-async function handleSuggestionKeydown(event) {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  event.preventDefault();
-  await handleSuggestionClick(event);
 }
 
 function recipeThumbHtml(recipe) {
@@ -1154,64 +1119,6 @@ async function handleRestaurantDetailAction(event) {
   } catch (error) {
     setStatus(error.message, true);
   }
-}
-
-function renderSuggestions(kind, filter) {
-  const normalizedFilter = String(filter || "なんでも").toLowerCase();
-  const items = kind === "restaurant"
-    ? suggestionRestaurants(normalizedFilter)
-    : suggestionRecipes(normalizedFilter);
-
-  suggestionListEl.innerHTML = items.length
-    ? items.map((item) => kind === "restaurant" ? restaurantCardHtml(item) : suggestionRecipeHtml(item)).join("")
-    : `<p class="empty">条件に合う候補はまだありません。</p>`;
-}
-
-function suggestionRecipes(filter) {
-  const candidates = recipes.filter((recipe) => {
-    if (filter === "なんでも") return true;
-    const recipeData = recipe.recipe || {};
-    const haystack = [
-      recipe.title,
-      recipe.ingredients_text,
-      recipe.tags,
-      recipe.mood_tags,
-      recipeData.cooking_time
-    ].join(" ").toLowerCase();
-    if (filter === "30分以内") return /(^|[^0-9])([1-2]?[0-9]|30)\s*分/.test(haystack) || haystack.includes("30分以内");
-    return haystack.includes(filter);
-  });
-  return rotateByDate(candidates).slice(0, 3);
-}
-
-function suggestionRestaurants(filter) {
-  const candidates = restaurants.filter((restaurant) => {
-    const meta = restaurant.meta || {};
-    if (filter === "want_to_visit") return meta.want_to_visit;
-    if (filter === "want_to_revisit") return meta.want_to_revisit;
-    return true;
-  });
-  return rotateByDate(candidates).slice(0, 3);
-}
-
-function suggestionRecipeHtml(recipe) {
-  return `
-    <article class="recipe-item suggestion-card" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
-      ${recipeThumbHtml(recipe)}
-      <div class="recipe-item-body">
-        <h3>${escapeHtml(recipe.title || "")}</h3>
-        <p>${escapeHtml(recipeCardMeta(recipe))}</p>
-        <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
-      </div>
-    </article>
-  `;
-}
-
-function rotateByDate(items) {
-  if (!items.length) return [];
-  const daySeed = Math.floor(Date.now() / 86400000);
-  const offset = daySeed % items.length;
-  return items.slice(offset).concat(items.slice(0, offset));
 }
 
 async function openCookingMode() {

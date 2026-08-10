@@ -18,67 +18,13 @@
   </header>
 
   <main class="container">
-    <section id="homeSection" class="app-view">
-      <section class="home-ledger" aria-labelledby="homeLedgerTitle">
-        <div>
-          <p class="eyebrow">Register</p>
-          <h2 id="homeLedgerTitle">まずは記録する</h2>
-          <p>ChatGPTで整えたJSONと写真を貼って、レシピやお店を台帳に残します。</p>
-        </div>
-        <div class="ledger-entry-list">
-          <button id="homeAddRecipeBtn" type="button" class="ledger-entry recipe-entry">
-            <span>レシピ登録</span>
-            <small>料理写真と保存用JSON</small>
-          </button>
-          <button id="homeAddRestaurantBtn" type="button" class="ledger-entry place-entry">
-            <span>お店登録</span>
-            <small>店舗情報と写真</small>
-          </button>
-        </div>
-      </section>
-
-      <section class="search-panel" aria-label="検索">
-        <label for="searchInput">料理・店・食材・タグを検索</label>
-        <input id="searchInput" type="search" placeholder="例: 鶏肉 川崎 さっぱり 作り置き">
-        <div id="quickFilters" class="chip-list quick-filters" aria-label="絞り込み"></div>
-      </section>
-
-      <details class="utility-drawer">
-        <summary>今日何食べる？</summary>
-        <div class="drawer-body">
-          <div class="suggestion-controls" aria-label="候補条件">
-            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="簡単">簡単に作る</button>
-            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="がっつり">がっつり作る</button>
-            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="30分以内">30分以内</button>
-            <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_visit">外で食べる</button>
-            <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_revisit">また行きたい店</button>
-          </div>
-          <div id="suggestionList" class="suggestion-list"></div>
-        </div>
-      </details>
-
-      <section class="content-section" aria-labelledby="homeRecipeListTitle">
-        <div class="section-head">
-          <div>
-            <h2 id="homeRecipeListTitle">最近のレシピ</h2>
-            <p>最近追加したものだけ表示します。全件は下のレシピから見られます。</p>
-          </div>
-        </div>
-        <div id="homeRecipeList" class="recipe-list"></div>
-      </section>
-
-      <section class="content-section" aria-labelledby="homeRestaurantListTitle">
-        <div class="section-head">
-          <div>
-            <h2 id="homeRestaurantListTitle">行きたい店</h2>
-            <p>行きたい店、また行きたい店を軽く残しておけます。</p>
-          </div>
-        </div>
-        <div id="homeRestaurantList" class="restaurant-list"></div>
-      </section>
+    <section id="ledgerSearchSection" class="search-panel">
+      <label for="searchInput">料理・店・食材・タグを検索</label>
+      <input id="searchInput" type="search" placeholder="例: 鶏肉 川崎 さっぱり 作り置き">
+      <div id="quickFilters" class="chip-list quick-filters" aria-label="絞り込み"></div>
     </section>
 
-    <section id="recipesSection" class="app-view hidden">
+    <section id="recipesSection" class="app-view">
       <div class="section-head">
         <div>
           <p class="eyebrow">Recipes</p>
@@ -215,8 +161,7 @@
   </main>
 
   <nav class="bottom-navigation" aria-label="メインナビゲーション">
-    <button id="homeNavBtn" type="button" aria-current="page">ホーム</button>
-    <button id="recipesNavBtn" type="button">レシピ</button>
+    <button id="recipesNavBtn" type="button" aria-current="page">レシピ</button>
     <button id="placesNavBtn" type="button">お店</button>
   </nav>
   <button id="addNavBtn" type="button" class="floating-add-button" aria-label="追加">＋</button>

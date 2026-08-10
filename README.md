@@ -1,6 +1,6 @@
 # Food Platform
 
-Food Platformは、個人で作った料理・レシピを簡単に保存、検索、改善していくためのWebアプリです。現在はRecipe機能が中心で、Restaurant基盤を段階的に追加しています。
+Food Platformは、個人で作った料理・レシピ、行きたい店、また行きたい店を簡単に保存、検索、改善していくためのWebアプリです。
 
 目的は「登録が面倒で使わなくなる」ことを防ぐことです。料理名、材料、手順、タグなどはユーザーがフォーム入力せず、普段利用しているChatGPT Plusで整理した保存用JSONを貼り付けて保存します。
 
@@ -23,7 +23,7 @@ Food Platformは、個人で作った料理・レシピを簡単に保存、検�
 1. ChatGPTで料理・レシピについて相談する
 2. 完成したレシピを保存用JSONに整形する
 3. JSONをクリップボードへコピーする
-4. Recipe Vaultを開く
+4. Food Platformを開く
 5. JSONを貼り付ける
 6. 必要なら料理写真を選択する
 7. プレビューを確認する
@@ -196,6 +196,14 @@ Phase 3以降では、飲食店管理のために以下のシートも使用し�
 - `restaurant_json`
 - `created_at`
 
+`recipe_user_meta` の保存列:
+
+- `recipe_id`
+- `favorite`
+- `last_cooked_at`
+- `cooked_count`
+- `updated_at`
+
 `restaurant_user_meta` の保存列:
 
 - `restaurant_id`
@@ -239,8 +247,10 @@ Phase 3以降では、飲食店管理のために以下のシートも使用し�
 
 `restaurant_id` は店名から自動判定しません。新規店舗は `null` または省略し、保存時にGASが一意IDを発行します。
 
-Restaurant API:
+Recipe / Restaurant API:
 
+- `GET ?action=toggleRecipeFavorite&recipe_id=...`
+- `GET ?action=recordRecipeCook&recipe_id=...`
 - `GET ?action=listRestaurants`
 - `GET ?action=getRestaurant&restaurant_id=...`
 - `POST action=saveRestaurant`
@@ -268,7 +278,49 @@ Restaurant API:
 - お気に入り
 - 今日行った
 
-`今日行った` を押すと、`visited = true`、`last_visited_at = 今日`、`visit_count += 1` になります。
+## 利用履歴
+
+レシピ詳細では以下を1タップで更新できます。
+
+- 今日作った
+- お気に入り
+
+`今日作った` を押すと `last_cooked_at` が当日になり、`cooked_count` が1増えます。レシピ自体は上書きせず、利用履歴は `recipe_user_meta` に分けて保存します。
+
+飲食店詳細では `今日行った` を押すと `last_visited_at` が当日になり、`visit_count` が1増え、`visited` が `true` になります。
+
+## 横断検索と候補表示
+
+ホーム上部の検索はRecipeとRestaurantをまとめて検索します。
+
+Recipe検索対象:
+
+- 料理名
+- 材料
+- 通常タグ
+- 気分タグ
+- お気に入り
+
+Restaurant検索対象:
+
+- 店名
+- エリア
+- ジャンル
+- 通常タグ
+- 気分タグ
+- 行きたい / 行った / また行きたい / お気に入り
+
+検索欄の下にあるタグチップはAND条件で絞り込みます。
+
+`今日何食べる？` はAI APIを使わず、保存済みデータから条件に近い候補を数件表示します。
+
+## 調理モード
+
+レシピ詳細の `調理モード` を押すと、手順を1工程ずつ大きく表示します。対応ブラウザでは画面スリープ防止を試みます。
+
+## PWA
+
+`manifest.webmanifest` と `sw.js` を含めています。GitHub PagesをiPhone Safariで開き、共有メニューから `ホーム画面に追加` するとWebアプリ風に起動できます。
 
 ## 写真保存
 

@@ -225,6 +225,32 @@ h3 {
   margin: 0;
 }
 
+.quick-filters {
+  padding-top: var(--space-1);
+}
+
+.suggestion-section {
+  border-top: var(--border-hairline);
+  padding-top: var(--space-5);
+}
+
+.suggestion-controls {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.suggestion-controls .filter-chip {
+  flex: 0 0 auto;
+}
+
+.suggestion-list {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .content-section {
   display: grid;
   gap: var(--space-4);
@@ -494,6 +520,22 @@ input[type="search"]:focus {
   margin-top: 0;
 }
 
+.recipe-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.recipe-actions .primary-button {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.usage-grid {
+  margin-bottom: var(--space-4);
+}
+
 .info-list {
   display: grid;
   gap: var(--space-2);
@@ -649,6 +691,27 @@ input[type="search"]:focus {
   padding: var(--space-5);
   background: var(--color-surface);
   box-shadow: var(--shadow-floating);
+}
+
+.cooking-panel {
+  display: grid;
+  min-height: min(520px, 78svh);
+  align-content: space-between;
+}
+
+.cooking-step-text {
+  margin: var(--space-8) 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 9vw, 42px);
+  line-height: 1.32;
+}
+
+.cooking-controls {
+  grid-template-columns: 1fr 1fr;
+}
+
+.cooking-controls .primary-button {
+  margin-top: 0;
 }
 
 .modal-head {

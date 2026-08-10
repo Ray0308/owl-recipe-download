@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fbf8f1">
   <title>Food Platform</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,8 +28,26 @@
       </div>
 
       <section class="search-panel" aria-label="検索">
-        <label for="searchInput">料理・食材・タグを検索</label>
-        <input id="searchInput" type="search" placeholder="例: 鶏肉 さっぱり 作り置き">
+        <label for="searchInput">料理・店・食材・タグを検索</label>
+        <input id="searchInput" type="search" placeholder="例: 鶏肉 川崎 さっぱり 作り置き">
+        <div id="quickFilters" class="chip-list quick-filters" aria-label="絞り込み"></div>
+      </section>
+
+      <section class="content-section suggestion-section" aria-labelledby="suggestionTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="suggestionTitle">今日何食べる？</h2>
+            <p>保存済みの料理とお店から軽く候補を出します。</p>
+          </div>
+        </div>
+        <div class="suggestion-controls" aria-label="候補条件">
+          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="簡単">簡単に作る</button>
+          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="がっつり">がっつり作る</button>
+          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="30分以内">30分以内</button>
+          <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_visit">外で食べる</button>
+          <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_revisit">また行きたい店</button>
+        </div>
+        <div id="suggestionList" class="suggestion-list"></div>
       </section>
 
       <section class="content-section" aria-labelledby="recipeListTitle">
@@ -187,6 +206,28 @@
     </div>
   </div>
 
+  <div id="cookingModeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cookingModeTitle">
+    <div class="modal-panel cooking-panel">
+      <div class="section-head modal-head">
+        <div>
+          <p id="cookingStepMeta" class="eyebrow">Step</p>
+          <h2 id="cookingModeTitle">調理モード</h2>
+        </div>
+        <button id="closeCookingModeBtn" type="button" class="icon-button" aria-label="閉じる">×</button>
+      </div>
+      <p id="cookingStepText" class="cooking-step-text"></p>
+      <div class="button-row cooking-controls">
+        <button id="prevCookingStepBtn" type="button" class="secondary-button">前へ</button>
+        <button id="nextCookingStepBtn" type="button" class="primary-button">次へ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  </script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>

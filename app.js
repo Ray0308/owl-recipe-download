@@ -4,7 +4,7 @@ const RECIPE_SCHEMA_VERSION = 1;
 
 const RECIPE_SCHEMA = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Recipe Vault JSON",
+  "title": "Food Platform Recipe JSON",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "title", "ingredients", "steps"],
@@ -68,7 +68,7 @@ const RESTAURANT_SCHEMA = {
   }
 };
 
-const BASE_GPT_PROMPT = `以下のレシピをRecipe Vaultアプリ保存用JSONに変換してください。
+const BASE_GPT_PROMPT = `以下のレシピをFood Platformアプリ保存用Recipe JSONに変換してください。
 説明文、Markdown、コードフェンスは不要です。JSONのみ出力してください。
 以下のJSON Schemaに厳密に従ってください。
 
@@ -125,11 +125,20 @@ const restaurantDetailCardEl = $("restaurantDetailCard");
 const restaurantDetailTitleEl = $("restaurantDetailTitle");
 const restaurantDetailMetaEl = $("restaurantDetailMeta");
 const restaurantDetailBodyEl = $("restaurantDetailBody");
+const quickFiltersEl = $("quickFilters");
+const suggestionListEl = $("suggestionList");
+const cookingModeModalEl = $("cookingModeModal");
+const cookingStepMetaEl = $("cookingStepMeta");
+const cookingStepTextEl = $("cookingStepText");
 
 let recipes = [];
 let currentDetail = null;
 let restaurants = [];
 let currentRestaurantDetail = null;
+let activeFilters = [];
+let cookingSteps = [];
+let cookingStepIndex = 0;
+let wakeLock = null;
 
 $("pasteBtn").addEventListener("click", pasteFromClipboard);
 $("previewBtn").addEventListener("click", renderPreview);
@@ -157,14 +166,20 @@ $("placesNavBtn").addEventListener("click", () => {
   showView("places");
 });
 $("cookTodayBtn").addEventListener("click", () => {
-  searchInputEl.value = "簡単";
-  renderRecipeList();
-  recipeListEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  renderSuggestions("recipe", "簡単");
+  suggestionListEl.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 $("eatOutBtn").addEventListener("click", () => {
   showView("places");
 });
-searchInputEl.addEventListener("input", renderRecipeList);
+searchInputEl.addEventListener("input", renderAllLists);
+quickFiltersEl.addEventListener("click", handleQuickFilterClick);
+document.querySelectorAll("[data-suggest-kind]").forEach((button) => {
+  button.addEventListener("click", () => renderSuggestions(button.dataset.suggestKind, button.dataset.suggestFilter));
+});
+$("closeCookingModeBtn").addEventListener("click", closeCookingMode);
+$("prevCookingStepBtn").addEventListener("click", () => moveCookingStep(-1));
+$("nextCookingStepBtn").addEventListener("click", () => moveCookingStep(1));
 photoEl.addEventListener("change", () => {
   if (recipeJsonEl.value.trim()) renderPreview();
 });
@@ -174,6 +189,9 @@ restaurantPhotoEl.addEventListener("change", () => {
 recipeListEl.addEventListener("click", handleRecipeListClick);
 recipeListEl.addEventListener("keydown", handleRecipeListKeydown);
 historyListEl.addEventListener("click", handleHistoryClick);
+detailBodyEl.addEventListener("click", handleRecipeDetailAction);
+suggestionListEl.addEventListener("click", handleSuggestionClick);
+suggestionListEl.addEventListener("keydown", handleSuggestionKeydown);
 restaurantListEl.addEventListener("click", handleRestaurantListClick);
 restaurantListEl.addEventListener("keydown", handleRestaurantListKeydown);
 homeRestaurantListEl.addEventListener("click", handleRestaurantListClick);
@@ -674,7 +692,7 @@ async function loadRecipes() {
     const result = await requestJson(`${endpoint}?action=listRecipes&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "一覧を取得できませんでした。");
     recipes = result.items || [];
-    renderRecipeList();
+    renderAllLists();
     if (!recipes.length) setStatus("保存済みレシピはまだありません。");
   } catch (error) {
     setStatus(error.message, true);
@@ -689,21 +707,36 @@ async function loadRestaurants() {
     const result = await requestJson(`${endpoint}?action=listRestaurants&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "お店一覧を取得できませんでした。");
     restaurants = result.items || [];
-    renderRestaurantLists();
+    renderAllLists();
   } catch (error) {
     setStatus(error.message, true);
   }
 }
 
+function renderAllLists() {
+  renderQuickFilters();
+  renderRecipeList();
+  renderRestaurantLists();
+  if (!suggestionListEl.innerHTML.trim()) renderSuggestions("recipe", "なんでも");
+}
+
+function currentQueries() {
+  return [
+    ...searchInputEl.value.trim().toLowerCase().split(/\s+/).filter(Boolean),
+    ...activeFilters.map((filter) => filter.toLowerCase())
+  ];
+}
+
 function renderRecipeList() {
-  const queries = searchInputEl.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const queries = currentQueries();
   const filtered = recipes.filter((recipe) => {
     if (!queries.length) return true;
     const haystack = [
       recipe.title,
       recipe.ingredients_text,
       recipe.tags,
-      recipe.mood_tags
+      recipe.mood_tags,
+      recipe.meta?.favorite ? "お気に入り" : ""
     ].join(" ").toLowerCase();
     return queries.every((query) => haystack.includes(query));
   });
@@ -723,13 +756,56 @@ function renderRecipeList() {
 }
 
 function renderRestaurantLists() {
-  homeRestaurantListEl.innerHTML = restaurants.length
-    ? restaurants.slice(0, 3).map(restaurantCardHtml).join("")
+  const queries = currentQueries();
+  const filtered = restaurants.filter((restaurant) => {
+    if (!queries.length) return true;
+    const meta = restaurant.meta || {};
+    const statusWords = [
+      meta.favorite ? "お気に入り" : "",
+      meta.want_to_visit ? "行きたい want_to_visit" : "",
+      meta.visited ? "行った visited" : "",
+      meta.want_to_revisit ? "また行きたい want_to_revisit" : ""
+    ];
+    const haystack = [
+      restaurant.name,
+      restaurant.area,
+      restaurant.genres,
+      restaurant.tags,
+      restaurant.mood_tags,
+      statusWords.join(" ")
+    ].join(" ").toLowerCase();
+    return queries.every((query) => haystack.includes(query));
+  });
+
+  homeRestaurantListEl.innerHTML = filtered.length
+    ? filtered.slice(0, 3).map(restaurantCardHtml).join("")
     : `<p class="empty">保存済みのお店はまだありません。</p>`;
 
-  restaurantListEl.innerHTML = restaurants.length
-    ? restaurants.map(restaurantCardHtml).join("")
+  restaurantListEl.innerHTML = filtered.length
+    ? filtered.map(restaurantCardHtml).join("")
     : `<p class="empty">保存済みのお店はまだありません。</p>`;
+}
+
+function renderQuickFilters() {
+  const baseFilters = ["お気に入り", "簡単", "さっぱり", "がっつり", "酒に合う", "行きたい", "また行きたい"];
+  const dynamicFilters = [
+    ...recipes.flatMap((recipe) => splitTags(recipe.tags).concat(splitTags(recipe.mood_tags))).slice(0, 24),
+    ...restaurants.flatMap((restaurant) => splitTags(restaurant.area).concat(splitTags(restaurant.genres), splitTags(restaurant.mood_tags))).slice(0, 24)
+  ];
+  const filters = Array.from(new Set(baseFilters.concat(dynamicFilters))).slice(0, 18);
+  quickFiltersEl.innerHTML = filters.map((filter) => `
+    <button type="button" class="filter-chip ${activeFilters.includes(filter) ? "is-selected" : ""}" data-filter="${escapeAttribute(filter)}" aria-pressed="${activeFilters.includes(filter) ? "true" : "false"}">${escapeHtml(filter)}</button>
+  `).join("");
+}
+
+function handleQuickFilterClick(event) {
+  const button = event.target.closest("[data-filter]");
+  if (!button) return;
+  const filter = button.dataset.filter;
+  activeFilters = activeFilters.includes(filter)
+    ? activeFilters.filter((item) => item !== filter)
+    : activeFilters.concat(filter);
+  renderAllLists();
 }
 
 function restaurantCardHtml(restaurant) {
@@ -796,6 +872,19 @@ async function handleRestaurantListKeydown(event) {
   if (!card) return;
   event.preventDefault();
   await openRestaurant(card.dataset.restaurantId);
+}
+
+async function handleSuggestionClick(event) {
+  const recipeCard = event.target.closest("[data-recipe-id]");
+  if (recipeCard) return openRecipe(recipeCard.dataset.recipeId);
+  const restaurantCard = event.target.closest("[data-restaurant-id]");
+  if (restaurantCard) return openRestaurant(restaurantCard.dataset.restaurantId);
+}
+
+async function handleSuggestionKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  await handleSuggestionClick(event);
 }
 
 function recipeThumbHtml(recipe) {
@@ -885,12 +974,19 @@ function renderRestaurantDetail(item) {
 
 function renderDetail(item, history) {
   const recipe = item.recipe;
+  const meta = item.meta || {};
   detailTitleEl.textContent = recipe.title;
   const latestVersion = history.length ? Math.max(...history.map((entry) => Number(entry.version) || 0)) : item.version;
   const isPastVersion = Number(item.version) < latestVersion;
   detailMetaEl.textContent = `${isPastVersion ? "過去バージョンを表示中 / " : ""}Ver.${item.version} / ${formatDate(item.created_at)}`;
   detailBodyEl.innerHTML = `
     ${photoHeroHtml(item.image_url, recipe.title)}
+    <div class="recipe-actions">
+      <button type="button" class="primary-button" data-recipe-action="cook">今日作った</button>
+      <button type="button" class="favorite-button" aria-pressed="${meta.favorite ? "true" : "false"}" data-recipe-action="favorite">${meta.favorite ? "お気に入り済み" : "お気に入り"}</button>
+      <button type="button" class="secondary-button" data-recipe-action="cooking-mode">調理モード</button>
+    </div>
+    ${recipeUsageHtml(meta)}
     ${recipeHtml(recipe)}
   `;
   historyListEl.innerHTML = history.length
@@ -902,6 +998,43 @@ function renderDetail(item, history) {
     `).join("")
     : `<p class="empty">履歴はありません。</p>`;
   showView("detail");
+}
+
+function recipeUsageHtml(meta) {
+  return `
+    <div class="fact-grid usage-grid">
+      <div><span>最終調理日</span><strong>${escapeHtml(formatDate(meta.last_cooked_at) || "未記録")}</strong></div>
+      <div><span>作った回数</span><strong>${escapeHtml(String(meta.cooked_count || 0))}</strong></div>
+    </div>
+  `;
+}
+
+async function handleRecipeDetailAction(event) {
+  const button = event.target.closest("[data-recipe-action]");
+  if (!button || !currentDetail) return;
+
+  const action = button.dataset.recipeAction;
+  if (action === "cooking-mode") {
+    openCookingMode();
+    return;
+  }
+
+  const endpoint = getEndpoint();
+  if (!endpoint) return;
+  const recipeId = currentDetail.recipe_id;
+  const actionName = action === "favorite" ? "toggleRecipeFavorite" : "recordRecipeCook";
+
+  try {
+    setStatus("更新中...");
+    const result = await requestJson(`${endpoint}?action=${actionName}&recipe_id=${encodeURIComponent(recipeId)}&_=${Date.now()}`);
+    if (!result.ok) throw new Error(result.error || "更新できませんでした。");
+    currentDetail.meta = result.meta;
+    await loadRecipes();
+    await openRecipe(recipeId);
+    setStatus(action === "favorite" ? "お気に入りを更新しました。" : "今日作った記録を保存しました。");
+  } catch (error) {
+    setStatus(error.message, true);
+  }
 }
 
 async function handleHistoryClick(event) {
@@ -993,6 +1126,107 @@ async function handleRestaurantDetailAction(event) {
   }
 }
 
+function renderSuggestions(kind, filter) {
+  const normalizedFilter = String(filter || "なんでも").toLowerCase();
+  const items = kind === "restaurant"
+    ? suggestionRestaurants(normalizedFilter)
+    : suggestionRecipes(normalizedFilter);
+
+  suggestionListEl.innerHTML = items.length
+    ? items.map((item) => kind === "restaurant" ? restaurantCardHtml(item) : suggestionRecipeHtml(item)).join("")
+    : `<p class="empty">条件に合う候補はまだありません。</p>`;
+}
+
+function suggestionRecipes(filter) {
+  const candidates = recipes.filter((recipe) => {
+    if (filter === "なんでも") return true;
+    const recipeData = recipe.recipe || {};
+    const haystack = [
+      recipe.title,
+      recipe.ingredients_text,
+      recipe.tags,
+      recipe.mood_tags,
+      recipeData.cooking_time
+    ].join(" ").toLowerCase();
+    if (filter === "30分以内") return /(^|[^0-9])([1-2]?[0-9]|30)\s*分/.test(haystack) || haystack.includes("30分以内");
+    return haystack.includes(filter);
+  });
+  return rotateByDate(candidates).slice(0, 3);
+}
+
+function suggestionRestaurants(filter) {
+  const candidates = restaurants.filter((restaurant) => {
+    const meta = restaurant.meta || {};
+    if (filter === "want_to_visit") return meta.want_to_visit;
+    if (filter === "want_to_revisit") return meta.want_to_revisit;
+    return true;
+  });
+  return rotateByDate(candidates).slice(0, 3);
+}
+
+function suggestionRecipeHtml(recipe) {
+  return `
+    <article class="recipe-item suggestion-card" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
+      ${recipeThumbHtml(recipe)}
+      <div class="recipe-item-body">
+        <h3>${escapeHtml(recipe.title || "")}</h3>
+        <p>${escapeHtml(recipeCardMeta(recipe))}</p>
+        <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
+      </div>
+    </article>
+  `;
+}
+
+function rotateByDate(items) {
+  if (!items.length) return [];
+  const daySeed = Math.floor(Date.now() / 86400000);
+  const offset = daySeed % items.length;
+  return items.slice(offset).concat(items.slice(0, offset));
+}
+
+async function openCookingMode() {
+  if (!currentDetail || !currentDetail.recipe || !Array.isArray(currentDetail.recipe.steps)) return;
+  cookingSteps = currentDetail.recipe.steps;
+  cookingStepIndex = 0;
+  cookingModeModalEl.classList.remove("hidden");
+  renderCookingStep();
+
+  if ("wakeLock" in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+    } catch (error) {
+      wakeLock = null;
+    }
+  }
+}
+
+function renderCookingStep() {
+  const total = cookingSteps.length;
+  cookingStepMetaEl.textContent = total ? `STEP ${cookingStepIndex + 1} / ${total}` : "STEP";
+  cookingStepTextEl.textContent = total ? cookingSteps[cookingStepIndex] : "手順がありません。";
+  $("prevCookingStepBtn").disabled = cookingStepIndex <= 0;
+  $("nextCookingStepBtn").textContent = cookingStepIndex >= total - 1 ? "閉じる" : "次へ";
+}
+
+function moveCookingStep(delta) {
+  if (!cookingSteps.length) return closeCookingMode();
+  if (delta > 0 && cookingStepIndex >= cookingSteps.length - 1) return closeCookingMode();
+  cookingStepIndex = Math.min(Math.max(cookingStepIndex + delta, 0), cookingSteps.length - 1);
+  renderCookingStep();
+}
+
+async function closeCookingMode() {
+  cookingModeModalEl.classList.add("hidden");
+  if (wakeLock) {
+    try {
+      await wakeLock.release();
+    } catch (error) {
+      // ignore release failures
+    }
+    wakeLock = null;
+  }
+}
+
 function copyConsultPrompt() {
   if (!currentDetail) {
     setStatus("先にレシピ詳細を開いてください。", true);
@@ -1038,7 +1272,7 @@ ${recipe.notes || ""}
 次回改善点:
 ${recipe.improvements || ""}
 
-相談後、保存するときはRecipe Vaultアプリ保存用JSONのみで出力してください。
+相談後、保存するときはFood Platformアプリ保存用Recipe JSONのみで出力してください。
 recipe_idは必ず「${currentDetail.recipe_id}」を維持してください。
 実際の分量が不明な場合、推測で確定せずamountを空文字にしてください。
 
@@ -1086,30 +1320,32 @@ function fileToDataUrl(file) {
 }
 
 function tagHtml(value, type = "") {
-  return String(value || "")
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
+  return splitTags(value)
     .map((tag) => `<span class="tag ${type}">${escapeHtml(tag)}</span>`)
     .join("");
 }
 
 function arrayTagHtml(value, type = "") {
-  return (Array.isArray(value) ? value : String(value || "").split(","))
-    .map((tag) => String(tag).trim())
-    .filter(Boolean)
+  return splitTags(value)
     .map((tag) => `<span class="tag ${type}">${escapeHtml(tag)}</span>`)
     .join("");
 }
 
 function limitedTagHtml(value, type = "", limit = 2) {
-  return String(value || "")
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
+  return splitTags(value)
     .slice(0, limit)
     .map((tag) => `<span class="tag ${type}">${escapeHtml(tag)}</span>`)
     .join("");
+}
+
+function splitTags(value) {
+  if (Array.isArray(value)) {
+    return value.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 }
 
 function formatDate(value) {

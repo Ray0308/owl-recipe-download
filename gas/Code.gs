@@ -65,6 +65,16 @@ function doGet(e) {
       return jsonResponse(getRecipe(recipeId, version));
     }
 
+    if (action === "toggleRecipeFavorite") {
+      const recipeId = e.parameter.recipe_id || e.parameter.recipeId || "";
+      return jsonResponse({ ok: true, meta: toggleRecipeFavorite(recipeId) });
+    }
+
+    if (action === "recordRecipeCook") {
+      const recipeId = e.parameter.recipe_id || e.parameter.recipeId || "";
+      return jsonResponse({ ok: true, meta: recordRecipeCook(recipeId) });
+    }
+
     if (action === "listRestaurants") {
       return jsonResponse({ ok: true, items: listRestaurants() });
     }
@@ -177,6 +187,7 @@ function saveRecipe(inputRecipe, photo) {
   };
 
   appendRecord(sheet, record);
+  ensureRecipeUserMeta(recipeId);
 
   return {
     recipe_id: recipeId,
@@ -197,9 +208,10 @@ function listLatestRecipes() {
     }
   });
 
+  const metaById = readRecipeUserMetaById();
   return Object.keys(latest)
     .map(function (key) {
-      return publicRecord(latest[key], false);
+      return publicRecord(latest[key], false, metaById[key]);
     })
     .sort(function (a, b) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -236,7 +248,7 @@ function getRecipe(recipeId, version) {
 
   return {
     ok: true,
-    item: publicRecord(selected, true),
+    item: publicRecord(selected, true, readRecipeUserMetaById()[recipeId] || defaultRecipeMeta(recipeId)),
     history: records.map(function (record) {
       return {
         recipe_id: record.recipe_id,
@@ -246,6 +258,23 @@ function getRecipe(recipeId, version) {
       };
     }).reverse()
   };
+}
+
+function toggleRecipeFavorite(recipeId) {
+  const meta = getExistingRecipeMeta(recipeId);
+  meta.favorite = !toBoolean(meta.favorite);
+  meta.updated_at = new Date();
+  writeRecipeMeta(meta);
+  return meta;
+}
+
+function recordRecipeCook(recipeId) {
+  const meta = getExistingRecipeMeta(recipeId);
+  meta.last_cooked_at = new Date();
+  meta.cooked_count = Number(meta.cooked_count || 0) + 1;
+  meta.updated_at = new Date();
+  writeRecipeMeta(meta);
+  return meta;
 }
 
 function saveRestaurant(inputRestaurant, photo) {
@@ -479,7 +508,7 @@ function readRestaurantRecords(sheet) {
     });
 }
 
-function publicRecord(record, includeRecipe) {
+function publicRecord(record, includeRecipe, meta) {
   const result = {
     recipe_id: record.recipe_id,
     version: record.version,
@@ -489,10 +518,97 @@ function publicRecord(record, includeRecipe) {
     mood_tags: record.mood_tags,
     image_file_id: record.image_file_id,
     image_url: imageUrl(record.image_file_id),
-    created_at: record.created_at
+    created_at: record.created_at,
+    meta: meta || defaultRecipeMeta(record.recipe_id)
   };
   if (includeRecipe) result.recipe = record.recipe;
   return result;
+}
+
+function ensureRecipeUserMeta(recipeId) {
+  const sheet = getRecipeUserMetaSheet();
+  ensureHeader(sheet, RECIPE_USER_META_HEADERS);
+  const metaById = readRecipeUserMetaById();
+  if (metaById[recipeId]) return metaById[recipeId];
+
+  const meta = defaultRecipeMeta(recipeId);
+  meta.updated_at = new Date();
+  appendRecord(sheet, meta);
+  return meta;
+}
+
+function getExistingRecipeMeta(recipeId) {
+  if (!recipeId) throw new Error("recipe_id is required.");
+  const recipes = readRecords(getSheet()).filter(function (record) {
+    return record.recipe_id === recipeId;
+  });
+  if (recipes.length === 0) throw new Error("レシピが見つかりません。");
+  return readRecipeUserMetaById()[recipeId] || ensureRecipeUserMeta(recipeId);
+}
+
+function writeRecipeMeta(meta) {
+  const sheet = getRecipeUserMetaSheet();
+  ensureHeader(sheet, RECIPE_USER_META_HEADERS);
+  const values = sheet.getDataRange().getValues();
+  const headers = getHeaders(sheet);
+  const recipeIdIndex = headers.indexOf("recipe_id");
+
+  let targetRow = -1;
+  for (let i = 1; i < values.length; i += 1) {
+    if (String(values[i][recipeIdIndex] || "") === meta.recipe_id) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+
+  const row = headers.map(function (header) {
+    return Object.prototype.hasOwnProperty.call(meta, header) ? meta[header] : "";
+  });
+
+  if (targetRow === -1) {
+    sheet.appendRow(row);
+  } else {
+    sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  }
+}
+
+function readRecipeUserMetaById() {
+  const sheet = getRecipeUserMetaSheet();
+  ensureHeader(sheet, RECIPE_USER_META_HEADERS);
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return {};
+
+  const headers = values[0].map(function (value) {
+    return String(value);
+  });
+  const index = {};
+  headers.forEach(function (header, i) {
+    index[header] = i;
+  });
+
+  const result = {};
+  values.slice(1).forEach(function (row) {
+    const recipeId = String(row[index.recipe_id] || "");
+    if (!recipeId) return;
+    result[recipeId] = {
+      recipe_id: recipeId,
+      favorite: toBoolean(row[index.favorite]),
+      last_cooked_at: row[index.last_cooked_at] || "",
+      cooked_count: Number(row[index.cooked_count] || 0),
+      updated_at: row[index.updated_at] || ""
+    };
+  });
+  return result;
+}
+
+function defaultRecipeMeta(recipeId) {
+  return {
+    recipe_id: recipeId,
+    favorite: false,
+    last_cooked_at: "",
+    cooked_count: 0,
+    updated_at: ""
+  };
 }
 
 function publicRestaurantRecord(record, includeRestaurant, meta) {
@@ -928,7 +1044,7 @@ function buildReturnUrl(returnUrl, result) {
 
 function postMessageResponse(payload, requestToken) {
   const message = {
-    source: "recipe-vault-gas",
+    source: "food-platform-gas",
     request_token: requestToken,
     payload: payload
   };

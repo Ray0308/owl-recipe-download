@@ -1,0 +1,18 @@
+{
+  "name": "Food Platform",
+  "short_name": "Food",
+  "description": "自分の料理と行きたい店を残す個人用Food Platform",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf8f1",
+  "theme_color": "#8f2f24",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

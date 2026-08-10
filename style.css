@@ -9,13 +9,16 @@
   --color-muted: #8b7a66;
   --color-line: #d5c4a8;
   --color-line-soft: rgba(77, 58, 37, .16);
-  --color-red: #8d2f2a;
-  --color-red-soft: #f4e1dc;
-  --color-terracotta: #a45a38;
+  --color-red: #a43d2f;
+  --color-red-soft: #f7ded5;
+  --color-terracotta: #bd6842;
+  --color-terracotta-soft: #f5e2d5;
   --color-olive: #485d3a;
   --color-olive-soft: #e9eddf;
-  --color-brass: #a77b33;
-  --color-gold-soft: #efe2c4;
+  --color-sage: #748158;
+  --color-brass: #b5822d;
+  --color-saffron-soft: #f4d993;
+  --color-gold-soft: #f1dfb7;
   --color-danger: #b4332d;
 
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
@@ -627,7 +630,7 @@ input[type="search"]:focus {
 }
 
 .archive-no {
-  color: var(--color-muted);
+  color: var(--color-terracotta);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
   font-weight: var(--weight-medium);
@@ -717,9 +720,10 @@ input[type="search"]:focus {
 .no-image {
   display: grid;
   place-items: center;
-  border: 1px solid rgba(77, 58, 37, .12);
-  background: rgba(239, 229, 210, .55);
-  color: var(--color-muted);
+  border: 1px solid rgba(189, 104, 66, .18);
+  background:
+    linear-gradient(135deg, rgba(244, 217, 147, .7), rgba(245, 226, 213, .42));
+  color: var(--color-ink-soft);
 }
 
 .no-image span,
@@ -755,7 +759,7 @@ input[type="search"]:focus {
 .photo-fallback b {
   display: block;
   margin-top: var(--space-1);
-  color: var(--color-muted);
+  color: var(--color-terracotta);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
   letter-spacing: .04em;
@@ -789,7 +793,7 @@ input[type="search"]:focus {
 }
 
 .detail-title-block span {
-  color: var(--color-muted);
+  color: var(--color-terracotta);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   font-weight: var(--weight-bold);
@@ -826,7 +830,7 @@ input[type="search"]:focus {
 
 .recipe-render h3 span,
 .restaurant-render h3 span {
-  color: var(--color-muted);
+  color: var(--color-brass);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
   font-weight: var(--weight-bold);
@@ -846,7 +850,7 @@ input[type="search"]:focus {
 }
 
 .note-block p {
-  border-left: 3px solid rgba(167, 123, 51, .42);
+  border-left: 3px solid rgba(189, 104, 66, .36);
   padding-left: var(--space-3);
   color: var(--color-ink-soft);
 }
@@ -970,8 +974,8 @@ input[type="search"]:focus {
   border: 0;
   border-radius: var(--radius-pill);
   padding: 3px 8px;
-  background: rgba(72, 93, 58, .09);
-  color: var(--color-ink-soft);
+  background: rgba(116, 129, 88, .14);
+  color: var(--color-olive);
   font-size: 11px;
   font-weight: var(--weight-medium);
   line-height: 1.35;
@@ -996,8 +1000,8 @@ input[type="search"]:focus {
 .tag.mood,
 .filter-chip.mood,
 .filter-chip.is-selected {
-  background: rgba(141, 47, 42, .1);
-  color: var(--color-terracotta);
+  background: rgba(189, 104, 66, .16);
+  color: #9a4b2f;
 }
 
 .history-item {
@@ -1049,11 +1053,11 @@ input[type="search"]:focus {
   border: 0;
   place-self: center;
   border-radius: 50%;
-  background: var(--color-red);
+  background: var(--color-terracotta);
   color: #fffdf8;
   font-size: 24px;
   line-height: 1;
-  box-shadow: 0 10px 26px rgba(143, 47, 36, .28);
+  box-shadow: 0 10px 28px rgba(189, 104, 66, .3);
 }
 
 .modal {

@@ -162,14 +162,9 @@ $("addRestaurantBtn").addEventListener("click", () => {
   closeAddModal();
   showView("add-restaurant");
 });
+$("homeAddRecipeBtn").addEventListener("click", () => showView("add-recipe"));
+$("homeAddRestaurantBtn").addEventListener("click", () => showView("add-restaurant"));
 $("placesNavBtn").addEventListener("click", () => {
-  showView("places");
-});
-$("cookTodayBtn").addEventListener("click", () => {
-  renderSuggestions("recipe", "簡単");
-  suggestionListEl.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-$("eatOutBtn").addEventListener("click", () => {
   showView("places");
 });
 searchInputEl.addEventListener("input", renderAllLists);
@@ -825,12 +820,12 @@ function restaurantCardHtml(restaurant) {
 function restaurantThumbHtml(restaurant) {
   const name = restaurant.name || "飲食店";
   if (!restaurant.image_url) {
-    return `<div class="thumb thumb-placeholder" aria-hidden="true"><span>写真なし</span></div>`;
+    return noImageHtml("Place", "thumb");
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(restaurant.image_url)}" alt="${escapeAttribute(name)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      <span class="thumb-fallback">写真なし</span>
+      ${noImageLabel("Place")}
     </div>
   `;
 }
@@ -890,26 +885,34 @@ async function handleSuggestionKeydown(event) {
 function recipeThumbHtml(recipe) {
   const title = recipe.title || "レシピ";
   if (!recipe.image_url) {
-    return `<div class="thumb thumb-placeholder" aria-hidden="true"><span>写真なし</span></div>`;
+    return noImageHtml("Recipe", "thumb");
   }
   return `
     <div class="thumb-frame">
       <img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="${escapeAttribute(title)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      <span class="thumb-fallback">写真なし</span>
+      ${noImageLabel("Recipe")}
     </div>
   `;
 }
 
 function photoHeroHtml(imageUrl, title) {
   if (!imageUrl) {
-    return `<div class="hero-photo photo-placeholder" aria-hidden="true"><span>写真なし</span></div>`;
+    return noImageHtml(title || "Recipe", "hero-photo");
   }
   return `
     <div class="photo-hero-frame">
       <img class="hero-photo" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(title || "レシピ写真")}" onerror="this.closest('.photo-hero-frame').classList.add('image-missing'); this.remove();">
-      <span class="photo-fallback">写真なし</span>
+      ${noImageLabel(title || "Recipe", "photo-fallback")}
     </div>
   `;
+}
+
+function noImageHtml(label, className) {
+  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label)}</div>`;
+}
+
+function noImageLabel(label, className = "thumb-fallback") {
+  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em><small>${escapeHtml(label)}</small></span>`;
 }
 
 function recipeCardMeta(recipe) {
@@ -962,10 +965,15 @@ function renderRestaurantDetail(item) {
   restaurantDetailBodyEl.innerHTML = `
     ${photoHeroHtml(item.image_url, restaurant.name)}
     <div class="restaurant-actions">
-      <button type="button" class="status-button ${meta.want_to_visit ? "is-active" : ""}" data-restaurant-action="status" data-status="want_to_visit">行きたい</button>
-      <button type="button" class="status-button ${meta.want_to_revisit ? "is-active" : ""}" data-restaurant-action="status" data-status="want_to_revisit">また行きたい</button>
-      <button type="button" class="favorite-button" aria-pressed="${meta.favorite ? "true" : "false"}" data-restaurant-action="favorite">${meta.favorite ? "お気に入り済み" : "お気に入り"}</button>
       <button type="button" class="primary-button" data-restaurant-action="visit">今日行った</button>
+      <details class="utility-drawer inline-tools">
+        <summary>状態を変更</summary>
+        <div class="drawer-body compact-actions">
+          <button type="button" class="status-button ${meta.want_to_visit ? "is-active" : ""}" data-restaurant-action="status" data-status="want_to_visit">行きたい</button>
+          <button type="button" class="status-button ${meta.want_to_revisit ? "is-active" : ""}" data-restaurant-action="status" data-status="want_to_revisit">また行きたい</button>
+          <button type="button" class="favorite-button" aria-pressed="${meta.favorite ? "true" : "false"}" data-restaurant-action="favorite">${meta.favorite ? "お気に入り済み" : "お気に入り"}</button>
+        </div>
+      </details>
     </div>
     ${restaurantHtml(restaurant, item)}
   `;
@@ -983,8 +991,13 @@ function renderDetail(item, history) {
     ${photoHeroHtml(item.image_url, recipe.title)}
     <div class="recipe-actions">
       <button type="button" class="primary-button" data-recipe-action="cook">今日作った</button>
-      <button type="button" class="favorite-button" aria-pressed="${meta.favorite ? "true" : "false"}" data-recipe-action="favorite">${meta.favorite ? "お気に入り済み" : "お気に入り"}</button>
-      <button type="button" class="secondary-button" data-recipe-action="cooking-mode">調理モード</button>
+      <details class="utility-drawer inline-tools">
+        <summary>その他の操作</summary>
+        <div class="drawer-body compact-actions">
+          <button type="button" class="secondary-button" data-recipe-action="cooking-mode">調理モード</button>
+          <button type="button" class="favorite-button" aria-pressed="${meta.favorite ? "true" : "false"}" data-recipe-action="favorite">${meta.favorite ? "お気に入り済み" : "お気に入り"}</button>
+        </div>
+      </details>
     </div>
     ${recipeUsageHtml(meta)}
     ${recipeHtml(recipe)}

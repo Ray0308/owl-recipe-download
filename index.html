@@ -19,13 +19,23 @@
 
   <main class="container">
     <section id="homeSection" class="app-view">
-      <div class="home-lead">
-        <h2>今日は何にする？</h2>
-        <div class="choice-row" aria-label="今日の選択">
-          <button id="cookTodayBtn" type="button" class="choice-button">自分で作る</button>
-          <button id="eatOutBtn" type="button" class="choice-button secondary-button">外で食べる</button>
+      <section class="home-ledger" aria-labelledby="homeLedgerTitle">
+        <div>
+          <p class="eyebrow">Register</p>
+          <h2 id="homeLedgerTitle">まずは記録する</h2>
+          <p>ChatGPTで整えたJSONと写真を貼って、レシピやお店を台帳に残します。</p>
         </div>
-      </div>
+        <div class="ledger-entry-list">
+          <button id="homeAddRecipeBtn" type="button" class="ledger-entry recipe-entry">
+            <span>レシピ登録</span>
+            <small>料理写真と保存用JSON</small>
+          </button>
+          <button id="homeAddRestaurantBtn" type="button" class="ledger-entry place-entry">
+            <span>お店登録</span>
+            <small>店舗情報と写真</small>
+          </button>
+        </div>
+      </section>
 
       <section class="search-panel" aria-label="検索">
         <label for="searchInput">料理・店・食材・タグを検索</label>
@@ -33,22 +43,19 @@
         <div id="quickFilters" class="chip-list quick-filters" aria-label="絞り込み"></div>
       </section>
 
-      <section class="content-section suggestion-section" aria-labelledby="suggestionTitle">
-        <div class="section-head">
-          <div>
-            <h2 id="suggestionTitle">今日何食べる？</h2>
-            <p>保存済みの料理とお店から軽く候補を出します。</p>
+      <details class="utility-drawer">
+        <summary>今日何食べる？</summary>
+        <div class="drawer-body">
+          <div class="suggestion-controls" aria-label="候補条件">
+            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="簡単">簡単に作る</button>
+            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="がっつり">がっつり作る</button>
+            <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="30分以内">30分以内</button>
+            <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_visit">外で食べる</button>
+            <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_revisit">また行きたい店</button>
           </div>
+          <div id="suggestionList" class="suggestion-list"></div>
         </div>
-        <div class="suggestion-controls" aria-label="候補条件">
-          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="簡単">簡単に作る</button>
-          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="がっつり">がっつり作る</button>
-          <button type="button" class="filter-chip" data-suggest-kind="recipe" data-suggest-filter="30分以内">30分以内</button>
-          <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_visit">外で食べる</button>
-          <button type="button" class="filter-chip" data-suggest-kind="restaurant" data-suggest-filter="want_to_revisit">また行きたい店</button>
-        </div>
-        <div id="suggestionList" class="suggestion-list"></div>
-      </section>
+      </details>
 
       <section class="content-section" aria-labelledby="recipeListTitle">
         <div class="section-head">
@@ -79,8 +86,15 @@
           <h2>レシピ登録</h2>
           <p>ChatGPT Plusで整えた保存用JSONを貼り付けます。料理名や材料の再入力は不要です。</p>
         </div>
-        <button id="copyPromptBtn" type="button" class="secondary-button">GPT用プロンプトをコピー</button>
       </div>
+
+      <details class="utility-drawer form-help">
+        <summary>GPT用プロンプト</summary>
+        <div class="drawer-body">
+          <p class="hint">ChatGPTに保存用JSONを作らせる時だけ使います。</p>
+          <button id="copyPromptBtn" type="button" class="secondary-button">プロンプトをコピー</button>
+        </div>
+      </details>
 
       <label for="recipeJson">アプリ保存用JSON</label>
       <textarea id="recipeJson" rows="13" spellcheck="false" placeholder='{"schema_version":1,"title":"..."}'></textarea>
@@ -107,8 +121,15 @@
           <h2>飲食店登録</h2>
           <p>ChatGPTで整えたRestaurant JSONを貼り付けます。店名や住所の手入力は不要です。</p>
         </div>
-        <button id="copyRestaurantPromptBtn" type="button" class="secondary-button">GPT用プロンプトをコピー</button>
       </div>
+
+      <details class="utility-drawer form-help">
+        <summary>GPT用プロンプト</summary>
+        <div class="drawer-body">
+          <p class="hint">ChatGPTに飲食店保存用JSONを作らせる時だけ使います。</p>
+          <button id="copyRestaurantPromptBtn" type="button" class="secondary-button">プロンプトをコピー</button>
+        </div>
+      </details>
 
       <label for="restaurantJson">飲食店保存用JSON</label>
       <textarea id="restaurantJson" rows="13" spellcheck="false" placeholder='{"schema_version":1,"type":"restaurant","name":"..."}'></textarea>
@@ -152,13 +173,18 @@
 
       <div id="detailBody" class="detail-body"></div>
 
-      <div class="button-row">
-        <button id="copyRecipeBtn" type="button">GPT相談用にコピー</button>
-        <button id="copyPromptFromDetailBtn" type="button">GPT用プロンプトをコピー</button>
-      </div>
+      <details class="utility-drawer detail-tools">
+        <summary>GPT相談・履歴</summary>
+        <div class="drawer-body">
+          <div class="button-row">
+            <button id="copyRecipeBtn" type="button">GPT相談用にコピー</button>
+            <button id="copyPromptFromDetailBtn" type="button">GPT用プロンプトをコピー</button>
+          </div>
 
-      <h3 class="history-title">改善履歴</h3>
-      <div id="historyList" class="history-list"></div>
+          <h3 class="history-title">改善履歴</h3>
+          <div id="historyList" class="history-list"></div>
+        </div>
+      </details>
     </section>
 
     <section id="restaurantDetailCard" class="app-view detail-view hidden">

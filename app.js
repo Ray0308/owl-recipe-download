@@ -103,6 +103,7 @@ const photoEl = $("photo");
 const previewEl = $("preview");
 const statusEl = $("status");
 const recipeListEl = $("recipeList");
+const homeRecipeListEl = $("homeRecipeList");
 const searchInputEl = $("searchInput");
 const validationPanelEl = $("validationPanel");
 const detailCardEl = $("detailCard");
@@ -111,6 +112,7 @@ const detailMetaEl = $("detailMeta");
 const detailBodyEl = $("detailBody");
 const historyListEl = $("historyList");
 const homeSectionEl = $("homeSection");
+const recipesSectionEl = $("recipesSection");
 const recipeFormSectionEl = $("recipeFormSection");
 const addModalEl = $("addModal");
 const restaurantFormSectionEl = $("restaurantFormSection");
@@ -148,7 +150,7 @@ $("copyPromptBtn").addEventListener("click", () => copyText(BASE_GPT_PROMPT, "GP
 $("copyPromptFromDetailBtn").addEventListener("click", () => copyText(BASE_GPT_PROMPT, "GPT用プロンプトをコピーしました。"));
 $("copyRestaurantPromptBtn").addEventListener("click", () => copyText(BASE_RESTAURANT_GPT_PROMPT, "飲食店用プロンプトをコピーしました。"));
 $("copyRecipeBtn").addEventListener("click", copyConsultPrompt);
-$("closeDetailBtn").addEventListener("click", () => showView("home"));
+$("closeDetailBtn").addEventListener("click", () => showView("recipes"));
 $("closeRestaurantDetailBtn").addEventListener("click", () => showView("places"));
 $("homeNavBtn").addEventListener("click", () => showView("home"));
 $("recipesNavBtn").addEventListener("click", () => showView("recipes"));
@@ -183,6 +185,8 @@ restaurantPhotoEl.addEventListener("change", () => {
 });
 recipeListEl.addEventListener("click", handleRecipeListClick);
 recipeListEl.addEventListener("keydown", handleRecipeListKeydown);
+homeRecipeListEl.addEventListener("click", handleRecipeListClick);
+homeRecipeListEl.addEventListener("keydown", handleRecipeListKeydown);
 historyListEl.addEventListener("click", handleHistoryClick);
 detailBodyEl.addEventListener("click", handleRecipeDetailAction);
 suggestionListEl.addEventListener("click", handleSuggestionClick);
@@ -208,10 +212,12 @@ function showView(view) {
   const isAddRecipe = view === "add-recipe";
   const isAddRestaurant = view === "add-restaurant";
   const isDetail = view === "detail";
+  const isRecipes = view === "recipes";
   const isPlaces = view === "places";
   const isRestaurantDetail = view === "restaurant-detail";
 
-  homeSectionEl.classList.toggle("hidden", isAddRecipe || isAddRestaurant || isDetail || isPlaces || isRestaurantDetail);
+  homeSectionEl.classList.toggle("hidden", isAddRecipe || isAddRestaurant || isDetail || isRecipes || isPlaces || isRestaurantDetail);
+  recipesSectionEl.classList.toggle("hidden", !isRecipes);
   recipeFormSectionEl.classList.toggle("hidden", !isAddRecipe);
   restaurantFormSectionEl.classList.toggle("hidden", !isAddRestaurant);
   detailCardEl.classList.toggle("hidden", !isDetail);
@@ -226,17 +232,19 @@ function showView(view) {
       ? restaurantFormSectionEl
       : isDetail
         ? detailCardEl
-        : isPlaces
-          ? placesSectionEl
-          : isRestaurantDetail
-            ? restaurantDetailCardEl
-            : homeSectionEl;
+        : isRecipes
+          ? recipesSectionEl
+          : isPlaces
+            ? placesSectionEl
+            : isRestaurantDetail
+              ? restaurantDetailCardEl
+              : homeSectionEl;
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setCurrentNav(view) {
   ["homeNavBtn", "recipesNavBtn", "placesNavBtn"].forEach((id) => $(id).removeAttribute("aria-current"));
-  if (view === "recipes") $("recipesNavBtn").setAttribute("aria-current", "page");
+  if (view === "recipes" || view === "detail") $("recipesNavBtn").setAttribute("aria-current", "page");
   else if (view === "places" || view === "restaurant-detail") $("placesNavBtn").setAttribute("aria-current", "page");
   else if (view !== "add-recipe" && view !== "add-restaurant" && view !== "detail") $("homeNavBtn").setAttribute("aria-current", "page");
 }
@@ -736,18 +744,27 @@ function renderRecipeList() {
     return queries.every((query) => haystack.includes(query));
   });
 
-  recipeListEl.innerHTML = filtered.length
-    ? filtered.map((recipe) => `
-      <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
-        ${recipeThumbHtml(recipe)}
-        <div class="recipe-item-body">
-          <h3>${escapeHtml(recipe.title || "")}</h3>
-          <p>${escapeHtml(recipeCardMeta(recipe))}</p>
-          <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
-        </div>
-      </article>
-    `).join("")
+  const markup = filtered.length
+    ? filtered.map(recipeCardHtml).join("")
     : `<p class="empty">該当するレシピはありません。</p>`;
+
+  recipeListEl.innerHTML = markup;
+  homeRecipeListEl.innerHTML = filtered.length
+    ? filtered.slice(0, 3).map(recipeCardHtml).join("")
+    : `<p class="empty">保存済みレシピはまだありません。</p>`;
+}
+
+function recipeCardHtml(recipe) {
+  return `
+    <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
+      ${recipeThumbHtml(recipe)}
+      <div class="recipe-item-body">
+        <h3>${escapeHtml(recipe.title || "")}</h3>
+        <p>${escapeHtml(recipeCardMeta(recipe))}</p>
+        <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
+      </div>
+    </article>
+  `;
 }
 
 function renderRestaurantLists() {

@@ -793,9 +793,9 @@ input[type="search"]:focus {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: 1fr 1fr 64px 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4) max(var(--space-2), env(safe-area-inset-bottom));
+  padding: var(--space-2) 88px max(var(--space-2), env(safe-area-inset-bottom)) var(--space-4);
   border-top: var(--border-hairline);
   background: rgba(251, 248, 241, .94);
   backdrop-filter: blur(14px);
@@ -813,12 +813,23 @@ input[type="search"]:focus {
   color: var(--color-red);
 }
 
-.bottom-navigation .add-button {
+.floating-add-button {
+  position: fixed;
+  right: max(var(--space-4), env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 25;
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
+  min-height: 58px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--color-red);
   color: #fffdf8;
   font-size: 24px;
   line-height: 1;
+  box-shadow: 0 10px 26px rgba(143, 47, 36, .28);
 }
 
 .modal {

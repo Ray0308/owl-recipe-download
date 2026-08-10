@@ -244,6 +244,31 @@ Restaurant API:
 - `GET ?action=listRestaurants`
 - `GET ?action=getRestaurant&restaurant_id=...`
 - `POST action=saveRestaurant`
+- `GET ?action=toggleRestaurantFavorite&restaurant_id=...`
+- `GET ?action=setRestaurantStatus&restaurant_id=...&status=want_to_visit`
+- `GET ?action=recordRestaurantVisit&restaurant_id=...`
+
+## 飲食店管理
+
+飲食店もレシピと同じく、ChatGPT Plusで保存用JSONを作り、アプリに貼り付けて保存します。
+
+登録フロー:
+
+1. 下部ナビの `＋` を押す
+2. `飲食店` を選ぶ
+3. Restaurant JSONを貼り付ける
+4. 必要なら写真を選ぶ
+5. プレビューを確認する
+6. 保存する
+
+お店詳細では以下を1タップで更新できます。
+
+- 行きたい
+- また行きたい
+- お気に入り
+- 今日行った
+
+`今日行った` を押すと、`visited = true`、`last_visited_at = 今日`、`visit_count += 1` になります。
 
 ## 写真保存
 

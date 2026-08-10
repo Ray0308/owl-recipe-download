@@ -74,6 +74,22 @@ function doGet(e) {
       return jsonResponse(getRestaurant(restaurantId));
     }
 
+    if (action === "toggleRestaurantFavorite") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      return jsonResponse({ ok: true, meta: toggleRestaurantFavorite(restaurantId) });
+    }
+
+    if (action === "setRestaurantStatus") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      const status = e.parameter.status || "";
+      return jsonResponse({ ok: true, meta: setRestaurantStatus(restaurantId, status) });
+    }
+
+    if (action === "recordRestaurantVisit") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      return jsonResponse({ ok: true, meta: recordRestaurantVisit(restaurantId) });
+    }
+
     return jsonResponse({ ok: false, error: "Unknown action." });
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err.message || err) });
@@ -334,6 +350,38 @@ function getRestaurant(restaurantId) {
   };
 }
 
+function toggleRestaurantFavorite(restaurantId) {
+  const meta = getExistingRestaurantMeta(restaurantId);
+  meta.favorite = !toBoolean(meta.favorite);
+  meta.updated_at = new Date();
+  writeRestaurantMeta(meta);
+  return meta;
+}
+
+function setRestaurantStatus(restaurantId, status) {
+  if (["want_to_visit", "visited", "want_to_revisit"].indexOf(status) === -1) {
+    throw new Error("statusが不正です。");
+  }
+  const meta = getExistingRestaurantMeta(restaurantId);
+  meta.want_to_visit = status === "want_to_visit";
+  meta.visited = status === "visited" || status === "want_to_revisit";
+  meta.want_to_revisit = status === "want_to_revisit";
+  meta.updated_at = new Date();
+  writeRestaurantMeta(meta);
+  return meta;
+}
+
+function recordRestaurantVisit(restaurantId) {
+  const meta = getExistingRestaurantMeta(restaurantId);
+  meta.visited = true;
+  meta.want_to_visit = false;
+  meta.last_visited_at = new Date();
+  meta.visit_count = Number(meta.visit_count || 0) + 1;
+  meta.updated_at = new Date();
+  writeRestaurantMeta(meta);
+  return meta;
+}
+
 function appendRecord(sheet, record) {
   const headers = getHeaders(sheet);
   const row = headers.map(function (header) {
@@ -477,6 +525,42 @@ function ensureRestaurantUserMeta(restaurantId, status) {
   meta.updated_at = new Date();
   appendRecord(sheet, meta);
   return meta;
+}
+
+function getExistingRestaurantMeta(restaurantId) {
+  if (!restaurantId) throw new Error("restaurant_id is required.");
+  const restaurants = readRestaurantRecords(getRestaurantSheet()).filter(function (record) {
+    return record.restaurant_id === restaurantId;
+  });
+  if (restaurants.length === 0) throw new Error("飲食店が見つかりません。");
+  const metaById = readRestaurantUserMetaById();
+  return metaById[restaurantId] || ensureRestaurantUserMeta(restaurantId, restaurants[restaurants.length - 1].restaurant.status);
+}
+
+function writeRestaurantMeta(meta) {
+  const sheet = getRestaurantUserMetaSheet();
+  ensureHeader(sheet, RESTAURANT_USER_META_HEADERS);
+  const values = sheet.getDataRange().getValues();
+  const headers = getHeaders(sheet);
+  const restaurantIdIndex = headers.indexOf("restaurant_id");
+
+  let targetRow = -1;
+  for (let i = 1; i < values.length; i += 1) {
+    if (String(values[i][restaurantIdIndex] || "") === meta.restaurant_id) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+
+  const row = headers.map(function (header) {
+    return Object.prototype.hasOwnProperty.call(meta, header) ? meta[header] : "";
+  });
+
+  if (targetRow === -1) {
+    sheet.appendRow(row);
+  } else {
+    sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  }
 }
 
 function readRestaurantUserMetaById() {

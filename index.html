@@ -41,6 +41,16 @@
         </div>
         <div id="recipeList" class="recipe-list"></div>
       </section>
+
+      <section class="content-section" aria-labelledby="homeRestaurantListTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="homeRestaurantListTitle">行きたい店</h2>
+            <p>行きたい店、また行きたい店を軽く残しておけます。</p>
+          </div>
+        </div>
+        <div id="homeRestaurantList" class="restaurant-list"></div>
+      </section>
     </section>
 
     <section id="recipeFormSection" class="app-view hidden">
@@ -71,6 +81,46 @@
       <button id="saveBtn" class="primary" type="button">保存する</button>
     </section>
 
+    <section id="restaurantFormSection" class="app-view hidden">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">New Place</p>
+          <h2>飲食店登録</h2>
+          <p>ChatGPTで整えたRestaurant JSONを貼り付けます。店名や住所の手入力は不要です。</p>
+        </div>
+        <button id="copyRestaurantPromptBtn" type="button" class="secondary-button">GPT用プロンプトをコピー</button>
+      </div>
+
+      <label for="restaurantJson">飲食店保存用JSON</label>
+      <textarea id="restaurantJson" rows="13" spellcheck="false" placeholder='{"schema_version":1,"type":"restaurant","name":"..."}'></textarea>
+
+      <div class="button-row">
+        <button id="pasteRestaurantBtn" type="button">クリップボードから貼り付け</button>
+        <button id="previewRestaurantBtn" type="button">JSONプレビュー</button>
+      </div>
+
+      <label for="restaurantPhoto">写真</label>
+      <input id="restaurantPhoto" type="file" accept="image/*">
+      <p class="hint">店舗写真や店で食べた料理写真を1枚保存できます。</p>
+
+      <div id="restaurantValidationPanel" class="message hidden"></div>
+      <div id="restaurantPreview" class="preview hidden"></div>
+
+      <button id="saveRestaurantBtn" class="primary" type="button">保存する</button>
+    </section>
+
+    <section id="placesSection" class="app-view hidden">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Places</p>
+          <h2>お店</h2>
+          <p>行きたい、行った、また行きたい店を探せます。</p>
+        </div>
+        <button id="reloadRestaurantsBtn" type="button" class="secondary-button">再読み込み</button>
+      </div>
+      <div id="restaurantList" class="restaurant-list"></div>
+    </section>
+
     <section id="detailCard" class="app-view detail-view hidden">
       <div class="section-head">
         <div>
@@ -90,6 +140,19 @@
 
       <h3 class="history-title">改善履歴</h3>
       <div id="historyList" class="history-list"></div>
+    </section>
+
+    <section id="restaurantDetailCard" class="app-view detail-view hidden">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Place</p>
+          <h2 id="restaurantDetailTitle">飲食店詳細</h2>
+          <p id="restaurantDetailMeta"></p>
+        </div>
+        <button id="closeRestaurantDetailBtn" type="button" class="secondary-button">戻る</button>
+      </div>
+
+      <div id="restaurantDetailBody" class="detail-body"></div>
     </section>
 
     <p id="status" class="status toast-line" role="status" aria-live="polite"></p>
@@ -118,7 +181,7 @@
         </button>
         <button id="addRestaurantBtn" type="button" class="secondary-button">
           <span>飲食店</span>
-          <small>Phase 3で追加予定</small>
+          <small>ChatGPTのRestaurant JSONを貼り付ける</small>
         </button>
       </div>
     </div>

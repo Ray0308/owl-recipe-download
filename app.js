@@ -297,6 +297,30 @@ function overflowActions(view = currentView) {
   return [];
 }
 
+const baseOverflowActions = overflowActions;
+overflowActions = function (view = currentView) {
+  const actions = baseOverflowActions(view);
+  if (view === "detail") {
+    return [
+      actions.find((action) => action.id === "consult"),
+      { id: "edit-recipe-json", label: "JSONを編集して新規Ver." },
+      { id: "copy-recipe-json", label: "保存用JSONをコピー" },
+      actions.find((action) => action.id === "recipe-prompt"),
+      actions.find((action) => action.id === "cooking-mode"),
+      actions.find((action) => action.id === "history"),
+      { id: "archive-recipe", label: "台帳から外す" }
+    ].filter(Boolean);
+  }
+  if (view === "restaurant-detail") {
+    return [
+      { id: "edit-restaurant-json", label: "JSONを編集する" },
+      { id: "copy-restaurant-json", label: "保存用JSONをコピー" },
+      { id: "archive-restaurant", label: "台帳から外す" }
+    ];
+  }
+  return actions;
+};
+
 function openOverflowMenu() {
   const actions = overflowActions();
   if (!actions.length) return;
@@ -327,6 +351,18 @@ function handleOverflowMenuAction(event) {
     loadRestaurants();
   } else if (action === "consult") {
     copyConsultPrompt();
+  } else if (action === "edit-recipe-json") {
+    editCurrentRecipeJson();
+  } else if (action === "edit-restaurant-json") {
+    editCurrentRestaurantJson();
+  } else if (action === "copy-recipe-json") {
+    copyCurrentRecipeJson();
+  } else if (action === "copy-restaurant-json") {
+    copyCurrentRestaurantJson();
+  } else if (action === "archive-recipe") {
+    archiveCurrentRecipe();
+  } else if (action === "archive-restaurant") {
+    archiveCurrentRestaurant();
   } else if (action === "cooking-mode") {
     openCookingMode();
   } else if (action === "history" && detailToolsEl) {
@@ -903,6 +939,7 @@ function currentQueries() {
 function renderRecipeList() {
   const queries = currentQueries();
   const filtered = recipes.filter((recipe) => {
+    if (recipe.meta?.archived) return false;
     if (!queries.length) return true;
     const haystack = [
       recipe.title,
@@ -939,6 +976,7 @@ function recipeCardHtml(recipe) {
 function renderRestaurantLists() {
   const queries = currentQueries();
   const filtered = restaurants.filter((restaurant) => {
+    if (restaurant.meta?.archived) return false;
     if (!queries.length) return true;
     const meta = restaurant.meta || {};
     const statusWords = [
@@ -1432,6 +1470,100 @@ JSON Schema:
 ${JSON.stringify(RECIPE_SCHEMA, null, 2)}`;
 
   copyText(prompt, "GPT相談用テキストをコピーしました。");
+}
+
+function copyCurrentRecipeJson() {
+  if (!currentDetail || !currentDetail.recipe) {
+    setStatus("レシピ詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  copyText(JSON.stringify(currentDetail.recipe, null, 2), "保存用JSONをコピーしました。");
+}
+
+function copyCurrentRestaurantJson() {
+  if (!currentRestaurantDetail) {
+    setStatus("お店詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const restaurant = currentRestaurantDetail.restaurant || currentRestaurantDetail;
+  copyText(JSON.stringify(restaurant, null, 2), "保存用JSONをコピーしました。");
+}
+
+function editCurrentRecipeJson() {
+  if (!currentDetail || !currentDetail.recipe) {
+    setStatus("レシピ詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  recipeJsonEl.value = JSON.stringify(currentDetail.recipe, null, 2);
+  renderPreview();
+  showView("add-recipe");
+  setStatus("JSONを編集して保存すると、このレシピの新しいバージョンとして残ります。");
+}
+
+function editCurrentRestaurantJson() {
+  if (!currentRestaurantDetail) {
+    setStatus("お店詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const restaurant = currentRestaurantDetail.restaurant || currentRestaurantDetail;
+  restaurantJsonEl.value = JSON.stringify(restaurant, null, 2);
+  renderRestaurantPreview();
+  showView("add-restaurant");
+  setStatus("JSONを編集して保存できます。");
+}
+
+async function archiveCurrentRecipe() {
+  if (!currentDetail) {
+    setStatus("レシピ詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const recipeId = currentDetail.recipe_id;
+  const confirmed = window.confirm("このレシピを通常の台帳から外します。Google Sheets上の記録は残ります。");
+  if (!confirmed) return;
+
+  const endpoint = getEndpoint();
+  if (!endpoint) return;
+
+  try {
+    setStatus("台帳から外しています...");
+    const result = await requestJson(`${endpoint}?action=archiveRecipe&recipe_id=${encodeURIComponent(recipeId)}&_=${Date.now()}`);
+    if (!result.ok) throw new Error(result.error || "台帳から外せませんでした。");
+    await loadRecipes();
+    showView("recipes");
+    setStatus("レシピを台帳から外しました。");
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function archiveCurrentRestaurant() {
+  if (!currentRestaurantDetail) {
+    setStatus("お店詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const restaurantId = currentRestaurantDetail.restaurant_id;
+  const confirmed = window.confirm("このお店を通常の台帳から外します。Google Sheets上の記録は残ります。");
+  if (!confirmed) return;
+
+  const endpoint = getEndpoint();
+  if (!endpoint) return;
+
+  try {
+    setStatus("台帳から外しています...");
+    const result = await requestJson(`${endpoint}?action=archiveRestaurant&restaurant_id=${encodeURIComponent(restaurantId)}&_=${Date.now()}`);
+    if (!result.ok) throw new Error(result.error || "台帳から外せませんでした。");
+    await loadRestaurants();
+    showView("places");
+    setStatus("お店を台帳から外しました。");
+  } catch (error) {
+    setStatus(error.message, true);
+  }
 }
 
 async function copyText(text, message) {

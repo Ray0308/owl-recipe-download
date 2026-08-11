@@ -34,6 +34,7 @@ const RECIPE_USER_META_HEADERS = [
   "favorite",
   "last_cooked_at",
   "cooked_count",
+  "archived",
   "updated_at"
 ];
 const RESTAURANT_USER_META_HEADERS = [
@@ -44,6 +45,7 @@ const RESTAURANT_USER_META_HEADERS = [
   "want_to_revisit",
   "last_visited_at",
   "visit_count",
+  "archived",
   "updated_at"
 ];
 
@@ -75,6 +77,16 @@ function doGet(e) {
       return jsonResponse({ ok: true, meta: recordRecipeCook(recipeId) });
     }
 
+    if (action === "archiveRecipe") {
+      const recipeId = e.parameter.recipe_id || e.parameter.recipeId || "";
+      return jsonResponse({ ok: true, meta: setRecipeArchived(recipeId, true) });
+    }
+
+    if (action === "restoreRecipe") {
+      const recipeId = e.parameter.recipe_id || e.parameter.recipeId || "";
+      return jsonResponse({ ok: true, meta: setRecipeArchived(recipeId, false) });
+    }
+
     if (action === "listRestaurants") {
       return jsonResponse({ ok: true, items: listRestaurants() });
     }
@@ -98,6 +110,16 @@ function doGet(e) {
     if (action === "recordRestaurantVisit") {
       const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
       return jsonResponse({ ok: true, meta: recordRestaurantVisit(restaurantId) });
+    }
+
+    if (action === "archiveRestaurant") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      return jsonResponse({ ok: true, meta: setRestaurantArchived(restaurantId, true) });
+    }
+
+    if (action === "restoreRestaurant") {
+      const restaurantId = e.parameter.restaurant_id || e.parameter.restaurantId || "";
+      return jsonResponse({ ok: true, meta: setRestaurantArchived(restaurantId, false) });
     }
 
     return jsonResponse({ ok: false, error: "Unknown action." });
@@ -211,7 +233,12 @@ function listLatestRecipes() {
   const metaById = readRecipeUserMetaById();
   return Object.keys(latest)
     .map(function (key) {
-      return publicRecord(latest[key], false, metaById[key]);
+      const meta = metaById[key] || defaultRecipeMeta(key);
+      if (toBoolean(meta.archived)) return null;
+      return publicRecord(latest[key], false, meta);
+    })
+    .filter(function (item) {
+      return item;
     })
     .sort(function (a, b) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -272,6 +299,14 @@ function recordRecipeCook(recipeId) {
   const meta = getExistingRecipeMeta(recipeId);
   meta.last_cooked_at = new Date();
   meta.cooked_count = Number(meta.cooked_count || 0) + 1;
+  meta.updated_at = new Date();
+  writeRecipeMeta(meta);
+  return meta;
+}
+
+function setRecipeArchived(recipeId, archived) {
+  const meta = getExistingRecipeMeta(recipeId);
+  meta.archived = Boolean(archived);
   meta.updated_at = new Date();
   writeRecipeMeta(meta);
   return meta;
@@ -345,7 +380,12 @@ function listRestaurants() {
   const metaById = readRestaurantUserMetaById();
   return Object.keys(latest)
     .map(function (key) {
-      return publicRestaurantRecord(latest[key], false, metaById[key]);
+      const meta = metaById[key] || defaultRestaurantMeta(key, latest[key].restaurant && latest[key].restaurant.status);
+      if (toBoolean(meta.archived)) return null;
+      return publicRestaurantRecord(latest[key], false, meta);
+    })
+    .filter(function (item) {
+      return item;
     })
     .sort(function (a, b) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -406,6 +446,14 @@ function recordRestaurantVisit(restaurantId) {
   meta.want_to_visit = false;
   meta.last_visited_at = new Date();
   meta.visit_count = Number(meta.visit_count || 0) + 1;
+  meta.updated_at = new Date();
+  writeRestaurantMeta(meta);
+  return meta;
+}
+
+function setRestaurantArchived(restaurantId, archived) {
+  const meta = getExistingRestaurantMeta(restaurantId);
+  meta.archived = Boolean(archived);
   meta.updated_at = new Date();
   writeRestaurantMeta(meta);
   return meta;
@@ -595,6 +643,7 @@ function readRecipeUserMetaById() {
       favorite: toBoolean(row[index.favorite]),
       last_cooked_at: row[index.last_cooked_at] || "",
       cooked_count: Number(row[index.cooked_count] || 0),
+      archived: toBoolean(row[index.archived]),
       updated_at: row[index.updated_at] || ""
     };
   });
@@ -607,6 +656,7 @@ function defaultRecipeMeta(recipeId) {
     favorite: false,
     last_cooked_at: "",
     cooked_count: 0,
+    archived: false,
     updated_at: ""
   };
 }
@@ -705,6 +755,7 @@ function readRestaurantUserMetaById() {
       want_to_revisit: toBoolean(row[index.want_to_revisit]),
       last_visited_at: row[index.last_visited_at] || "",
       visit_count: Number(row[index.visit_count] || 0),
+      archived: toBoolean(row[index.archived]),
       updated_at: row[index.updated_at] || ""
     };
   });
@@ -721,6 +772,7 @@ function defaultRestaurantMeta(restaurantId, status) {
     want_to_revisit: normalizedStatus === "want_to_revisit",
     last_visited_at: "",
     visit_count: 0,
+    archived: false,
     updated_at: ""
   };
 }

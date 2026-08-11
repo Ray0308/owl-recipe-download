@@ -843,9 +843,8 @@ function recipeCardHtml(recipe) {
   const archiveNo = archiveNumber(recipe.recipe_id, "R");
   return `
     <article class="recipe-item" data-recipe-id="${escapeAttribute(recipe.recipe_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((recipe.title || "レシピ") + "を開く")}">
-      ${recipeThumbHtml(recipe)}
+      <span class="ledger-number">${escapeHtml(archiveNo)}</span>
       <div class="recipe-item-body">
-        <span class="archive-no">${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(recipe.title || "")}</h3>
         <p>${escapeHtml(recipeCardMeta(recipe))}</p>
         <div class="tags">${limitedTagHtml(recipe.tags, "", 2)}${limitedTagHtml(recipe.mood_tags, "mood", 1)}</div>
@@ -905,9 +904,8 @@ function restaurantCardHtml(restaurant) {
   const archiveNo = archiveNumber(restaurant.restaurant_id, "P");
   return `
     <article class="restaurant-card" data-restaurant-id="${escapeAttribute(restaurant.restaurant_id)}" role="button" tabindex="0" aria-label="${escapeAttribute((restaurant.name || "飲食店") + "を開く")}">
-      ${restaurantThumbHtml(restaurant)}
+      <span class="ledger-number">${escapeHtml(archiveNo)}</span>
       <div class="restaurant-card-body">
-        <span class="archive-no">${escapeHtml(archiveNo)}</span>
         <h3>${escapeHtml(restaurant.name || "")}</h3>
         <p>${escapeHtml(restaurantCardMeta(restaurant))}</p>
         <div class="tags">${statusTagHtml(meta)}${limitedTagHtml(restaurant.genres, "", 1)}${limitedTagHtml(restaurant.mood_tags, "mood", 1)}</div>
@@ -995,6 +993,20 @@ function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE", archiveNo = "")
   `;
 }
 
+function textHeroHtml(kind, archiveNo, title, meta = "") {
+  const initial = String(title || kind || "").trim().slice(0, 1).toUpperCase() || "R";
+  return `
+    <div class="text-hero ${kind === "RESTAURANT" ? "place-hero" : "recipe-hero"}">
+      <div class="text-hero-mark" aria-hidden="true">${escapeHtml(initial)}</div>
+      <div class="text-hero-body">
+        <span>${escapeHtml(kind)} / ${escapeHtml(archiveNo)}</span>
+        <h2>${escapeHtml(title)}</h2>
+        ${meta ? `<p>${escapeHtml(meta)}</p>` : ""}
+      </div>
+    </div>
+  `;
+}
+
 function noImageHtml(label, className, archiveNo = "") {
   const fallbackClass = className.includes("hero") ? "photo-fallback" : "thumb-fallback";
   return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label, fallbackClass, archiveNo)}</div>`;
@@ -1060,12 +1072,7 @@ function renderRestaurantDetail(item) {
   restaurantDetailTitleEl.textContent = restaurant.name;
   restaurantDetailMetaEl.textContent = [restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / ");
   restaurantDetailBodyEl.innerHTML = `
-    ${photoHeroHtml(item.image_url, restaurant.name, "RESTAURANT", archiveNo)}
-    <div class="detail-title-block">
-      <span>${escapeHtml(archiveNo)}</span>
-      <h2>${escapeHtml(restaurant.name || "")}</h2>
-      <p>${escapeHtml([restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / "))}</p>
-    </div>
+    ${textHeroHtml("RESTAURANT", archiveNo, restaurant.name || "", [restaurant.area, (restaurant.genres || []).join(" / ")].filter(Boolean).join(" / "))}
     <div class="restaurant-actions">
       <button type="button" class="primary-button" data-restaurant-action="visit">今日行った</button>
       <details class="utility-drawer inline-tools">
@@ -1091,12 +1098,7 @@ function renderDetail(item, history) {
   const isPastVersion = Number(item.version) < latestVersion;
   detailMetaEl.textContent = `${isPastVersion ? "過去バージョンを表示中 / " : ""}Ver.${item.version} / ${formatDate(item.created_at)}`;
   detailBodyEl.innerHTML = `
-    ${photoHeroHtml(item.image_url, recipe.title, "RECIPE", archiveNo)}
-    <div class="detail-title-block">
-      <span>${escapeHtml(archiveNo)} / Ver.${escapeHtml(item.version)}</span>
-      <h2>${escapeHtml(recipe.title || "")}</h2>
-      <p>${escapeHtml([recipe.servings, recipe.cooking_time].filter(Boolean).join(" / "))}</p>
-    </div>
+    ${textHeroHtml("RECIPE", `${archiveNo} / Ver.${item.version}`, recipe.title || "", [recipe.servings, recipe.cooking_time].filter(Boolean).join(" / "))}
     <div class="recipe-actions">
       <button type="button" class="primary-button" data-recipe-action="cook">今日作った</button>
       <details class="utility-drawer inline-tools">

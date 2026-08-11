@@ -762,6 +762,7 @@ function submitSaveForm(endpoint, payload) {
     const iframe = document.createElement("iframe");
     const form = document.createElement("form");
     let settled = false;
+    let pollTimer = null;
 
     iframe.name = frameName;
     iframe.title = "保存処理";
@@ -780,6 +781,7 @@ function submitSaveForm(endpoint, payload) {
     const cleanup = () => {
       window.removeEventListener("message", handleMessage);
       window.clearTimeout(timer);
+      if (pollTimer) window.clearInterval(pollTimer);
       window.setTimeout(() => {
         iframe.remove();
         form.remove();
@@ -795,7 +797,18 @@ function submitSaveForm(endpoint, payload) {
 
     const timer = window.setTimeout(() => {
       finish(() => reject(new Error("保存結果を受信できませんでした。通信状態を確認して、一覧を再読み込みしてください。")));
-    }, 45000);
+    }, 75000);
+
+    async function pollSaveReceipt() {
+      if (settled) return;
+      try {
+        const receipt = await requestJson(`${endpoint}?action=getSaveReceipt&request_token=${encodeURIComponent(requestToken)}&_=${Date.now()}`);
+        if (!receipt || receipt.pending) return;
+        finish(() => resolve(receipt));
+      } catch (error) {
+        // Keep the original iframe result path alive while the save request is still running.
+      }
+    }
 
     function handleMessage(event) {
       const data = event.data || {};
@@ -807,6 +820,8 @@ function submitSaveForm(endpoint, payload) {
     document.body.appendChild(iframe);
     document.body.appendChild(form);
     form.submit();
+    window.setTimeout(pollSaveReceipt, 2000);
+    pollTimer = window.setInterval(pollSaveReceipt, 2500);
   });
 }
 

@@ -3,6 +3,7 @@ const RECIPE_SHEET_NAME = "recipes";
 const RESTAURANT_SHEET_NAME = "restaurants";
 const RECIPE_USER_META_SHEET_NAME = "recipe_user_meta";
 const RESTAURANT_USER_META_SHEET_NAME = "restaurant_user_meta";
+const SAVE_RECEIPT_SHEET_NAME = "save_receipts";
 
 const RECIPE_HEADERS = [
   "recipe_id",
@@ -48,6 +49,12 @@ const RESTAURANT_USER_META_HEADERS = [
   "archived",
   "updated_at"
 ];
+const SAVE_RECEIPT_HEADERS = [
+  "request_token",
+  "ok",
+  "payload_json",
+  "created_at"
+];
 
 // Script Properties:
 // SPREADSHEET_ID: Google Sheets "Recipe DB" のID
@@ -75,6 +82,11 @@ function doGet(e) {
     if (action === "recordRecipeCook") {
       const recipeId = e.parameter.recipe_id || e.parameter.recipeId || "";
       return jsonResponse({ ok: true, meta: recordRecipeCook(recipeId) });
+    }
+
+    if (action === "getSaveReceipt") {
+      const requestToken = e.parameter.request_token || e.parameter.requestToken || "";
+      return jsonResponse(getSaveReceipt(requestToken));
     }
 
     if (action === "archiveRecipe") {
@@ -145,11 +157,13 @@ function doPost(e) {
       result = Object.assign({ ok: true }, saveRestaurant(payload.restaurant, payload.photo));
     }
 
+    if (requestToken) writeSaveReceipt(requestToken, result);
     if (responseMode === "htmlRedirect") return redirectResponse(result, returnUrl);
     if (responseMode === "postMessage") return postMessageResponse(result, requestToken);
     return jsonResponse(result);
   } catch (err) {
     const result = { ok: false, error: String(err.message || err) };
+    if (requestToken) writeSaveReceipt(requestToken, result);
     if (responseMode === "htmlRedirect") return redirectResponse(result, returnUrl);
     if (responseMode === "postMessage") return postMessageResponse(result, requestToken);
     return jsonResponse(result);
@@ -457,6 +471,46 @@ function setRestaurantArchived(restaurantId, archived) {
   meta.updated_at = new Date();
   writeRestaurantMeta(meta);
   return meta;
+}
+
+function writeSaveReceipt(requestToken, payload) {
+  if (!requestToken) return;
+  const sheet = getSaveReceiptSheet();
+  ensureHeader(sheet, SAVE_RECEIPT_HEADERS);
+  appendRecord(sheet, {
+    request_token: requestToken,
+    ok: Boolean(payload && payload.ok),
+    payload_json: JSON.stringify(payload || {}),
+    created_at: new Date()
+  });
+}
+
+function getSaveReceipt(requestToken) {
+  if (!requestToken) return { ok: false, pending: true, error: "request_token is required." };
+  const sheet = getSaveReceiptSheet();
+  ensureHeader(sheet, SAVE_RECEIPT_HEADERS);
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { ok: false, pending: true };
+
+  const headers = values[0].map(function (value) {
+    return String(value);
+  });
+  const index = {};
+  headers.forEach(function (header, i) {
+    index[header] = i;
+  });
+
+  for (let i = values.length - 1; i >= 1; i -= 1) {
+    const row = values[i];
+    if (String(row[index.request_token] || "") !== requestToken) continue;
+    try {
+      return JSON.parse(String(row[index.payload_json] || "{}"));
+    } catch (err) {
+      return { ok: false, error: "Saved receipt could not be parsed." };
+    }
+  }
+
+  return { ok: false, pending: true };
 }
 
 function appendRecord(sheet, record) {
@@ -992,6 +1046,10 @@ function getRecipeUserMetaSheet() {
 
 function getRestaurantUserMetaSheet() {
   return getSheetByName(RESTAURANT_USER_META_SHEET_NAME);
+}
+
+function getSaveReceiptSheet() {
+  return getSheetByName(SAVE_RECEIPT_SHEET_NAME);
 }
 
 function getSheetByName(sheetName) {

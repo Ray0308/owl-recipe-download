@@ -655,7 +655,8 @@ async function saveRecipe() {
   }
 
   try {
-    setStatus("保存画面へ移動します...");
+    setSaveBusy("recipe", true);
+    setStatus("保存中...");
     const photoBase64 = photoEl.files[0] ? await fileToDataUrl(photoEl.files[0]) : null;
     const body = {
       action: "saveRecipe",
@@ -667,10 +668,13 @@ async function saveRecipe() {
       } : null
     };
 
-    sessionStorage.setItem("recipeVaultPendingTitle", parsed.recipe.title || "");
-    submitSaveForm(endpoint, body);
+    const result = await submitSaveForm(endpoint, body);
+    if (!result.ok) throw new Error(result.error || "保存できませんでした。");
+    await completeRecipeSave(result);
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setSaveBusy("recipe", false);
   }
 }
 
@@ -686,7 +690,8 @@ async function saveRestaurant() {
   }
 
   try {
-    setStatus("保存画面へ移動します...");
+    setSaveBusy("restaurant", true);
+    setStatus("保存中...");
     const photoBase64 = restaurantPhotoEl.files[0] ? await fileToDataUrl(restaurantPhotoEl.files[0]) : null;
     const body = {
       action: "saveRestaurant",
@@ -698,26 +703,75 @@ async function saveRestaurant() {
       } : null
     };
 
-    submitSaveForm(endpoint, body);
+    const result = await submitSaveForm(endpoint, body);
+    if (!result.ok) throw new Error(result.error || "保存できませんでした。");
+    await completeRestaurantSave(result);
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setSaveBusy("restaurant", false);
   }
 }
 
+function setSaveBusy(type, isBusy) {
+  const button = type === "restaurant" ? $("saveRestaurantBtn") : $("saveBtn");
+  button.disabled = Boolean(isBusy);
+  button.textContent = isBusy ? "保存中..." : "保存する";
+}
+
 function submitSaveForm(endpoint, payload) {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = endpoint;
-  form.target = "_self";
-  form.enctype = "application/x-www-form-urlencoded";
-  form.style.display = "none";
+  return new Promise((resolve, reject) => {
+    const requestToken = `save-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const frameName = `save-frame-${requestToken}`;
+    const iframe = document.createElement("iframe");
+    const form = document.createElement("form");
+    let settled = false;
 
-  addFormField(form, "payload", JSON.stringify(payload));
-  addFormField(form, "response_mode", "htmlRedirect");
-  addFormField(form, "return_url", cleanReturnUrl());
+    iframe.name = frameName;
+    iframe.title = "保存処理";
+    iframe.style.display = "none";
 
-  document.body.appendChild(form);
-  form.submit();
+    form.method = "POST";
+    form.action = endpoint;
+    form.target = frameName;
+    form.enctype = "application/x-www-form-urlencoded";
+    form.style.display = "none";
+
+    addFormField(form, "payload", JSON.stringify(payload));
+    addFormField(form, "response_mode", "postMessage");
+    addFormField(form, "request_token", requestToken);
+
+    const cleanup = () => {
+      window.removeEventListener("message", handleMessage);
+      window.clearTimeout(timer);
+      window.setTimeout(() => {
+        iframe.remove();
+        form.remove();
+      }, 0);
+    };
+
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+
+    const timer = window.setTimeout(() => {
+      finish(() => reject(new Error("保存結果を受信できませんでした。通信状態を確認して、一覧を再読み込みしてください。")));
+    }, 45000);
+
+    function handleMessage(event) {
+      const data = event.data || {};
+      if (!data || data.source !== "food-platform-gas" || data.request_token !== requestToken) return;
+      finish(() => resolve(data.payload || { ok: false, error: "保存結果が空です。" }));
+    }
+
+    window.addEventListener("message", handleMessage);
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    form.submit();
+  });
 }
 
 function addFormField(form, name, value) {
@@ -764,6 +818,35 @@ function handleSaveReturn() {
   } else if (saveError) {
     setStatus(`保存に失敗しました: ${saveError}`, true);
   }
+}
+
+async function completeRecipeSave(result) {
+  const recipeId = result.recipe_id || "";
+  const version = result.version || "";
+  const label = recipeId ? `${recipeId}${version ? ` / Ver.${version}` : ""}` : "保存しました";
+  setStatus(`保存しました: ${label}`);
+  recipeJsonEl.value = "";
+  photoEl.value = "";
+  previewEl.classList.add("hidden");
+  validationPanelEl.classList.add("hidden");
+  sessionStorage.removeItem("recipeVaultPendingTitle");
+  await loadRecipes();
+  if (recipeId) await openRecipe(recipeId);
+  else showView("recipes");
+  setStatus(`保存しました: ${label}`);
+}
+
+async function completeRestaurantSave(result) {
+  const restaurantId = result.restaurant_id || "";
+  setStatus(`保存しました: ${restaurantId || "飲食店"}`);
+  restaurantJsonEl.value = "";
+  restaurantPhotoEl.value = "";
+  restaurantPreviewEl.classList.add("hidden");
+  restaurantValidationPanelEl.classList.add("hidden");
+  await loadRestaurants();
+  if (restaurantId) await openRestaurant(restaurantId);
+  else showView("places");
+  setStatus(`保存しました: ${restaurantId || "飲食店"}`);
 }
 
 function cleanReturnUrl() {

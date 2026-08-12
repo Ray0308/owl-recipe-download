@@ -109,6 +109,28 @@ button.primary,
   color: #fffdf8;
 }
 
+button.is-busy,
+.primary-button.is-busy {
+  position: relative;
+  pointer-events: none;
+}
+
+.button-spinner,
+.loading-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: rv-spin .72s linear infinite;
+}
+
+.button-spinner {
+  margin-right: var(--space-2);
+  vertical-align: -3px;
+}
+
 .secondary-button {
   border-color: var(--color-line);
   background: transparent;
@@ -567,6 +589,89 @@ input[type="search"]:focus {
 
 .status.error {
   color: var(--color-danger);
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: end center;
+  padding: 0 var(--space-4) calc(108px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgba(248, 243, 233, 0), rgba(248, 243, 233, .5));
+  pointer-events: none;
+}
+
+.loading-card {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(92vw, 360px);
+  border: 1px solid rgba(77, 58, 37, .14);
+  border-radius: var(--radius-pill);
+  padding: 10px 14px;
+  background: rgba(255, 250, 240, .94);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-floating);
+  backdrop-filter: blur(16px);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.loading-card .loading-spinner {
+  color: var(--color-terracotta);
+}
+
+.list-loading {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.loading-row {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 14px;
+  align-items: center;
+  border-top: var(--border-hairline);
+  padding: 15px 0;
+}
+
+.loading-row:first-child {
+  border-top: 0;
+}
+
+.loading-line,
+.loading-mark {
+  position: relative;
+  overflow: hidden;
+  background: rgba(117, 103, 82, .13);
+}
+
+.loading-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.loading-line {
+  height: 12px;
+  border-radius: var(--radius-pill);
+}
+
+.loading-line.short {
+  width: 46%;
+  margin-top: var(--space-2);
+}
+
+.loading-line::after,
+.loading-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 250, 240, .75), transparent);
+  transform: translateX(-100%);
+  animation: rv-shimmer 1.2s ease-in-out infinite;
 }
 
 .recipe-list,
@@ -1244,6 +1349,18 @@ input[type="search"]:focus {
   display: none;
 }
 
+@keyframes rv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rv-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .empty-state,
 .empty {
   padding: var(--space-4) 0;
@@ -1295,5 +1412,14 @@ input[type="search"]:focus {
 
   .card-photo {
     width: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-spinner,
+  .loading-spinner,
+  .loading-line::after,
+  .loading-mark::after {
+    animation: none;
   }
 }

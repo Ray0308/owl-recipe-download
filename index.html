@@ -158,6 +158,13 @@
     <p id="status" class="status toast-line" role="status" aria-live="polite"></p>
   </main>
 
+  <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite" aria-atomic="true">
+    <div class="loading-card">
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <span id="loadingText">読み込み中...</span>
+    </div>
+  </div>
+
   <nav class="bottom-navigation" aria-label="メインナビゲーション">
     <button id="recipesNavBtn" type="button" aria-current="page">レシピ</button>
     <button id="addNavBtn" type="button" class="add-button" aria-label="追加">＋</button>

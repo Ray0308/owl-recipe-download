@@ -102,6 +102,8 @@ const recipeJsonEl = $("recipeJson");
 const photoEl = $("photo");
 const previewEl = $("preview");
 const statusEl = $("status");
+const loadingOverlayEl = $("loadingOverlay");
+const loadingTextEl = $("loadingText");
 const recipeListEl = $("recipeList");
 const searchInputEl = $("searchInput");
 const validationPanelEl = $("validationPanel");
@@ -145,6 +147,7 @@ let cookingSteps = [];
 let cookingStepIndex = 0;
 let wakeLock = null;
 let currentView = "recipes";
+let loadingDepth = 0;
 
 $("pasteBtn").addEventListener("click", pasteFromClipboard);
 $("previewBtn").addEventListener("click", renderPreview);
@@ -692,6 +695,7 @@ async function saveRecipe() {
 
   try {
     setSaveBusy("recipe", true);
+    setAppLoading(true, "レシピを保存しています...");
     setStatus("保存中...");
     const photoBase64 = photoEl.files[0] ? await fileToDataUrl(photoEl.files[0]) : null;
     const body = {
@@ -710,6 +714,7 @@ async function saveRecipe() {
   } catch (error) {
     setStatus(error.message, true);
   } finally {
+    setAppLoading(false);
     setSaveBusy("recipe", false);
   }
 }
@@ -727,6 +732,7 @@ async function saveRestaurant() {
 
   try {
     setSaveBusy("restaurant", true);
+    setAppLoading(true, "お店を保存しています...");
     setStatus("保存中...");
     const photoBase64 = restaurantPhotoEl.files[0] ? await fileToDataUrl(restaurantPhotoEl.files[0]) : null;
     const body = {
@@ -745,6 +751,7 @@ async function saveRestaurant() {
   } catch (error) {
     setStatus(error.message, true);
   } finally {
+    setAppLoading(false);
     setSaveBusy("restaurant", false);
   }
 }
@@ -752,7 +759,10 @@ async function saveRestaurant() {
 function setSaveBusy(type, isBusy) {
   const button = type === "restaurant" ? $("saveRestaurantBtn") : $("saveBtn");
   button.disabled = Boolean(isBusy);
-  button.textContent = isBusy ? "保存中..." : "保存する";
+  button.classList.toggle("is-busy", Boolean(isBusy));
+  button.innerHTML = isBusy
+    ? `<span class="button-spinner" aria-hidden="true"></span>保存中...`
+    : "保存する";
 }
 
 function submitSaveForm(endpoint, payload) {
@@ -914,6 +924,8 @@ async function loadRecipes() {
   }
 
   try {
+    setAppLoading(true, "レシピ台帳を読み込んでいます...");
+    if (!recipes.length) recipeListEl.innerHTML = loadingListHtml();
     const result = await requestJson(`${endpoint}?action=listRecipes&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "一覧を取得できませんでした。");
     recipes = result.items || [];
@@ -921,6 +933,8 @@ async function loadRecipes() {
     if (!recipes.length) setStatus("保存済みレシピはまだありません。");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -929,12 +943,16 @@ async function loadRestaurants() {
   if (!endpoint) return;
 
   try {
+    setAppLoading(true, "お店台帳を読み込んでいます...");
+    if (!restaurants.length) restaurantListEl.innerHTML = loadingListHtml();
     const result = await requestJson(`${endpoint}?action=listRestaurants&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "お店一覧を取得できませんでした。");
     restaurants = result.items || [];
     renderAllLists();
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -942,6 +960,22 @@ function renderAllLists() {
   renderQuickFilters();
   renderRecipeList();
   renderRestaurantLists();
+}
+
+function loadingListHtml(count = 4) {
+  return `
+    <div class="list-loading" aria-hidden="true">
+      ${Array.from({ length: count }).map(() => `
+        <div class="loading-row">
+          <span class="loading-mark"></span>
+          <span>
+            <span class="loading-line"></span>
+            <span class="loading-line short"></span>
+          </span>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function currentQueries() {
@@ -1173,6 +1207,7 @@ async function openRecipe(recipeId, version = null) {
   if (!endpoint) return;
 
   try {
+    setAppLoading(true, "レシピを開いています...");
     setStatus("詳細を取得中...");
     const versionParam = version ? `&version=${encodeURIComponent(version)}` : "";
     const result = await requestJson(`${endpoint}?action=getRecipe&recipe_id=${encodeURIComponent(recipeId)}${versionParam}&_=${Date.now()}`);
@@ -1182,6 +1217,8 @@ async function openRecipe(recipeId, version = null) {
     setStatus("");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1190,6 +1227,7 @@ async function openRestaurant(restaurantId) {
   if (!endpoint) return;
 
   try {
+    setAppLoading(true, "お店を開いています...");
     setStatus("お店の詳細を取得中...");
     const result = await requestJson(`${endpoint}?action=getRestaurant&restaurant_id=${encodeURIComponent(restaurantId)}&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "お店の詳細を取得できませんでした。");
@@ -1198,6 +1236,8 @@ async function openRestaurant(restaurantId) {
     setStatus("");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1288,6 +1328,7 @@ async function handleRecipeDetailAction(event) {
   const actionName = action === "favorite" ? "toggleRecipeFavorite" : "recordRecipeCook";
 
   try {
+    setAppLoading(true, "記録を更新しています...");
     setStatus("更新中...");
     const result = await requestJson(`${endpoint}?action=${actionName}&recipe_id=${encodeURIComponent(recipeId)}&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "更新できませんでした。");
@@ -1297,6 +1338,8 @@ async function handleRecipeDetailAction(event) {
     setStatus(action === "favorite" ? "お気に入りを更新しました。" : "今日作った記録を保存しました。");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1377,6 +1420,7 @@ async function handleRestaurantDetailAction(event) {
   if (!url) return;
 
   try {
+    setAppLoading(true, "記録を更新しています...");
     setStatus("更新中...");
     const result = await requestJson(url);
     if (!result.ok) throw new Error(result.error || "更新できませんでした。");
@@ -1386,6 +1430,8 @@ async function handleRestaurantDetailAction(event) {
     setStatus("更新しました。");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1545,6 +1591,7 @@ async function archiveCurrentRecipe() {
   if (!endpoint) return;
 
   try {
+    setAppLoading(true, "台帳を整理しています...");
     setStatus("台帳から外しています...");
     const result = await requestJson(`${endpoint}?action=archiveRecipe&recipe_id=${encodeURIComponent(recipeId)}&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "台帳から外せませんでした。");
@@ -1553,6 +1600,8 @@ async function archiveCurrentRecipe() {
     setStatus("レシピを台帳から外しました。");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1570,6 +1619,7 @@ async function archiveCurrentRestaurant() {
   if (!endpoint) return;
 
   try {
+    setAppLoading(true, "台帳を整理しています...");
     setStatus("台帳から外しています...");
     const result = await requestJson(`${endpoint}?action=archiveRestaurant&restaurant_id=${encodeURIComponent(restaurantId)}&_=${Date.now()}`);
     if (!result.ok) throw new Error(result.error || "台帳から外せませんでした。");
@@ -1578,6 +1628,8 @@ async function archiveCurrentRestaurant() {
     setStatus("お店を台帳から外しました。");
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setAppLoading(false);
   }
 }
 
@@ -1657,6 +1709,14 @@ function formatDate(value) {
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.classList.toggle("error", Boolean(isError));
+}
+
+function setAppLoading(isLoading, message = "読み込み中...") {
+  if (!loadingOverlayEl || !loadingTextEl) return;
+
+  loadingDepth = Math.max(0, loadingDepth + (isLoading ? 1 : -1));
+  if (isLoading) loadingTextEl.textContent = message;
+  loadingOverlayEl.classList.toggle("hidden", loadingDepth === 0);
 }
 
 function shouldReduceMotion() {

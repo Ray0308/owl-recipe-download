@@ -51,7 +51,11 @@
         </div>
       </details>
 
-      <label for="recipeJson">アプリ保存用JSON</label>
+      <div class="json-kind-banner recipe-kind">
+        <strong>レシピ登録</strong>
+        <span>料理名は title を使います</span>
+      </div>
+      <label for="recipeJson">Recipe JSON</label>
       <textarea id="recipeJson" rows="13" spellcheck="false" placeholder='{"schema_version":1,"title":"..."}'></textarea>
 
       <div class="button-row">
@@ -86,7 +90,11 @@
         </div>
       </details>
 
-      <label for="restaurantJson">飲食店保存用JSON</label>
+      <div class="json-kind-banner restaurant-kind">
+        <strong>お店登録</strong>
+        <span>店舗名は name を使います</span>
+      </div>
+      <label for="restaurantJson">Restaurant JSON</label>
       <textarea id="restaurantJson" rows="13" spellcheck="false" placeholder='{"schema_version":1,"type":"restaurant","name":"..."}'></textarea>
 
       <div class="button-row">

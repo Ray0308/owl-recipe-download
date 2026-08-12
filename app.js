@@ -164,11 +164,11 @@ $("addNavBtn").addEventListener("click", openAddModal);
 $("closeAddModalBtn").addEventListener("click", closeAddModal);
 $("addRecipeBtn").addEventListener("click", () => {
   closeAddModal();
-  showView("add-recipe");
+  openRecipeRegistration();
 });
 $("addRestaurantBtn").addEventListener("click", () => {
   closeAddModal();
-  showView("add-restaurant");
+  openRestaurantRegistration();
 });
 $("placesNavBtn").addEventListener("click", () => {
   showView("places");
@@ -384,9 +384,21 @@ function closeAddModal() {
   addModalEl.classList.add("hidden");
 }
 
+function openRecipeRegistration() {
+  hideRestaurantFeedback();
+  showView("add-recipe");
+}
+
+function openRestaurantRegistration() {
+  hideRecipeFeedback();
+  showView("add-restaurant");
+}
+
 async function pasteFromClipboard() {
   try {
-    recipeJsonEl.value = await navigator.clipboard.readText();
+    const text = await navigator.clipboard.readText();
+    if (routePastedJson(text, "recipe")) return;
+    recipeJsonEl.value = text;
     renderPreview();
   } catch (error) {
     setStatus("クリップボードを読めませんでした。手動で貼り付けてください。", true);
@@ -395,11 +407,70 @@ async function pasteFromClipboard() {
 
 async function pasteRestaurantFromClipboard() {
   try {
-    restaurantJsonEl.value = await navigator.clipboard.readText();
+    const text = await navigator.clipboard.readText();
+    if (routePastedJson(text, "restaurant")) return;
+    restaurantJsonEl.value = text;
     renderRestaurantPreview();
   } catch (error) {
     setStatus("クリップボードを読めませんでした。手動で貼り付けてください。", true);
   }
+}
+
+function routePastedJson(text, fallbackKind = "recipe") {
+  const kind = detectJsonKind(text);
+  if (kind === "recipe") {
+    recipeJsonEl.value = text;
+    restaurantJsonEl.value = "";
+    restaurantPhotoEl.value = "";
+    hideRestaurantFeedback();
+    if (currentView !== "add-recipe") showView("add-recipe");
+    renderPreview();
+    return true;
+  }
+  if (kind === "restaurant") {
+    restaurantJsonEl.value = text;
+    recipeJsonEl.value = "";
+    photoEl.value = "";
+    hideRecipeFeedback();
+    if (currentView !== "add-restaurant") showView("add-restaurant");
+    renderRestaurantPreview();
+    return true;
+  }
+
+  if (fallbackKind === "restaurant") {
+    restaurantJsonEl.value = text;
+    return false;
+  }
+  recipeJsonEl.value = text;
+  return false;
+}
+
+function detectJsonKind(text) {
+  let data;
+  try {
+    data = JSON.parse(String(text || "").trim());
+  } catch (error) {
+    return "";
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return "";
+  if (data.type === "restaurant") return "restaurant";
+  if ("restaurant_id" in data || "address" in data || "phone" in data || "genres" in data) return "restaurant";
+  if ("title" in data || "ingredients" in data || "steps" in data || "recipe_id" in data) return "recipe";
+  return "";
+}
+
+function hideRecipeFeedback() {
+  validationPanelEl.classList.add("hidden");
+  validationPanelEl.innerHTML = "";
+  previewEl.classList.add("hidden");
+  previewEl.innerHTML = "";
+}
+
+function hideRestaurantFeedback() {
+  restaurantValidationPanelEl.classList.add("hidden");
+  restaurantValidationPanelEl.innerHTML = "";
+  restaurantPreviewEl.classList.add("hidden");
+  restaurantPreviewEl.innerHTML = "";
 }
 
 function parseRecipe() {
@@ -619,6 +690,8 @@ function validateStringArray(value, key, errors) {
 }
 
 function renderPreview() {
+  if (routePreviewByJsonKind("recipe")) return;
+
   const result = parseRecipe();
   renderValidation(result.errors);
 
@@ -634,6 +707,8 @@ function renderPreview() {
 }
 
 function renderRestaurantPreview() {
+  if (routePreviewByJsonKind("restaurant")) return;
+
   const result = parseRestaurant();
   renderRestaurantValidation(result.errors);
 
@@ -646,6 +721,17 @@ function renderRestaurantPreview() {
   restaurantPreviewEl.classList.remove("hidden");
   restaurantPreviewEl.innerHTML = `${selectedRestaurantPhotoHtml()}${restaurantHtml(result.restaurant)}`;
   setStatus("プレビューOK。内容に問題がなければ保存できます。");
+}
+
+function routePreviewByJsonKind(currentKind) {
+  const activeEl = currentKind === "restaurant" ? restaurantJsonEl : recipeJsonEl;
+  const raw = activeEl.value.trim();
+  const kind = detectJsonKind(raw);
+  if (!kind || kind === currentKind) return false;
+
+  routePastedJson(raw, kind);
+  setStatus(kind === "recipe" ? "Recipe JSONとして読み込みました。" : "Restaurant JSONとして読み込みました。");
+  return true;
 }
 
 function selectedPhotoHtml() {
@@ -686,6 +772,8 @@ async function saveRecipe() {
   const endpoint = getEndpoint();
   if (!endpoint) return;
 
+  if (routeSaveByJsonKind("recipe")) return;
+
   const parsed = parseRecipe();
   renderValidation(parsed.errors);
   if (!parsed.ok) {
@@ -723,6 +811,8 @@ async function saveRestaurant() {
   const endpoint = getEndpoint();
   if (!endpoint) return;
 
+  if (routeSaveByJsonKind("restaurant")) return;
+
   const parsed = parseRestaurant();
   renderRestaurantValidation(parsed.errors);
   if (!parsed.ok) {
@@ -754,6 +844,19 @@ async function saveRestaurant() {
     setAppLoading(false);
     setSaveBusy("restaurant", false);
   }
+}
+
+function routeSaveByJsonKind(currentKind) {
+  const activeEl = currentKind === "restaurant" ? restaurantJsonEl : recipeJsonEl;
+  const raw = activeEl.value.trim();
+  const kind = detectJsonKind(raw);
+  if (!kind || kind === currentKind) return false;
+
+  routePastedJson(raw, kind);
+  setStatus(kind === "recipe"
+    ? "Recipe JSONです。レシピ登録画面でプレビューを確認して保存してください。"
+    : "Restaurant JSONです。お店登録画面でプレビューを確認して保存してください。");
+  return true;
 }
 
 function setSaveBusy(type, isBusy) {

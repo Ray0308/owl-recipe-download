@@ -556,6 +556,34 @@ input[type="search"]:focus {
   margin-top: var(--space-2);
 }
 
+.json-kind-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: var(--border-hairline);
+  border-left: 4px solid var(--color-terracotta);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: rgba(255, 250, 240, .72);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
+.json-kind-banner strong {
+  white-space: nowrap;
+  font-weight: var(--weight-bold);
+}
+
+.json-kind-banner span {
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.json-kind-banner.restaurant-kind {
+  border-left-color: var(--color-olive);
+}
+
 .message,
 .toast {
   margin-top: var(--space-4);

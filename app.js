@@ -298,6 +298,7 @@ overflowActions = function (view = currentView) {
   if (view === "detail") {
     return [
       actions.find((action) => action.id === "consult"),
+      { id: "share-recipe", label: "共有用テキストをコピー" },
       { id: "edit-recipe-json", label: "JSONを編集して新規Ver." },
       { id: "copy-recipe-json", label: "保存用JSONをコピー" },
       actions.find((action) => action.id === "recipe-prompt"),
@@ -308,6 +309,7 @@ overflowActions = function (view = currentView) {
   }
   if (view === "restaurant-detail") {
     return [
+      { id: "share-restaurant", label: "共有用テキストをコピー" },
       { id: "edit-restaurant-json", label: "JSONを編集する" },
       { id: "copy-restaurant-json", label: "保存用JSONをコピー" },
       { id: "archive-restaurant", label: "台帳から外す" }
@@ -346,6 +348,10 @@ function handleOverflowMenuAction(event) {
     loadRestaurants();
   } else if (action === "consult") {
     copyConsultPrompt();
+  } else if (action === "share-recipe") {
+    copyCurrentRecipeShareText();
+  } else if (action === "share-restaurant") {
+    copyCurrentRestaurantShareText();
   } else if (action === "edit-recipe-json") {
     editCurrentRecipeJson();
   } else if (action === "edit-restaurant-json") {
@@ -1558,6 +1564,38 @@ function copyCurrentRecipeJson() {
   copyText(JSON.stringify(currentDetail.recipe, null, 2), "保存用JSONをコピーしました。");
 }
 
+function copyCurrentRecipeShareText() {
+  if (!currentDetail || !currentDetail.recipe) {
+    setStatus("レシピ詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const recipe = currentDetail.recipe;
+  const ingredients = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients.map((item) => `・${item.name || ""}${item.amount ? `: ${item.amount}` : ""}`.trim()).filter((line) => line !== "・")
+    : [];
+  const steps = Array.isArray(recipe.steps)
+    ? recipe.steps.map((step, index) => `${index + 1}. ${step}`).filter(Boolean)
+    : [];
+  const tags = [...splitTags(recipe.tags), ...splitTags(recipe.mood_tags)];
+  const lines = [
+    recipe.title || "レシピ",
+    [recipe.servings, recipe.cooking_time].filter(Boolean).join(" / "),
+    "",
+    ingredients.length ? "材料:" : "",
+    ...ingredients,
+    "",
+    steps.length ? "作り方:" : "",
+    ...steps,
+    "",
+    recipe.notes ? `メモ: ${recipe.notes}` : "",
+    recipe.improvements ? `次回改善: ${recipe.improvements}` : "",
+    tags.length ? `タグ: ${tags.join(" / ")}` : ""
+  ].filter((line, index, array) => line !== "" || (array[index - 1] && array[index + 1]));
+
+  copyText(lines.join("\n"), "共有用テキストをコピーしました。");
+}
+
 function copyCurrentRestaurantJson() {
   if (!currentRestaurantDetail) {
     setStatus("お店詳細を開いてから実行してください。", true);
@@ -1566,6 +1604,32 @@ function copyCurrentRestaurantJson() {
 
   const restaurant = currentRestaurantDetail.restaurant || currentRestaurantDetail;
   copyText(JSON.stringify(restaurant, null, 2), "保存用JSONをコピーしました。");
+}
+
+function copyCurrentRestaurantShareText() {
+  if (!currentRestaurantDetail) {
+    setStatus("お店詳細を開いてから実行してください。", true);
+    return;
+  }
+
+  const restaurant = currentRestaurantDetail.restaurant || currentRestaurantDetail;
+  const tags = [...splitTags(restaurant.genres), ...splitTags(restaurant.tags), ...splitTags(restaurant.mood_tags)];
+  const mapUrl = restaurant.address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address)}`
+    : "";
+  const lines = [
+    restaurant.name || "お店",
+    [restaurant.area, splitTags(restaurant.genres).join(" / ")].filter(Boolean).join(" / "),
+    "",
+    restaurant.address ? `住所: ${restaurant.address}` : "",
+    restaurant.phone ? `電話: ${restaurant.phone}` : "",
+    restaurant.url ? `店舗ページ: ${restaurant.url}` : "",
+    mapUrl ? `地図: ${mapUrl}` : "",
+    restaurant.notes ? `メモ: ${restaurant.notes}` : "",
+    tags.length ? `タグ: ${tags.join(" / ")}` : ""
+  ].filter((line, index, array) => line !== "" || (array[index - 1] && array[index + 1]));
+
+  copyText(lines.join("\n"), "共有用テキストをコピーしました。");
 }
 
 function editCurrentRecipeJson() {

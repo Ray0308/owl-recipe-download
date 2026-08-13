@@ -99,7 +99,6 @@ JSON Schema:
 ${JSON.stringify(RESTAURANT_SCHEMA, null, 2)}`;
 
 const recipeJsonEl = $("recipeJson");
-const photoEl = $("photo");
 const previewEl = $("preview");
 const statusEl = $("status");
 const loadingOverlayEl = $("loadingOverlay");
@@ -118,7 +117,6 @@ const recipeFormSectionEl = $("recipeFormSection");
 const addModalEl = $("addModal");
 const restaurantFormSectionEl = $("restaurantFormSection");
 const restaurantJsonEl = $("restaurantJson");
-const restaurantPhotoEl = $("restaurantPhoto");
 const restaurantPreviewEl = $("restaurantPreview");
 const restaurantValidationPanelEl = $("restaurantValidationPanel");
 const placesSectionEl = $("placesSection");
@@ -185,12 +183,6 @@ quickFiltersEl.addEventListener("click", handleQuickFilterClick);
 $("closeCookingModeBtn").addEventListener("click", closeCookingMode);
 $("prevCookingStepBtn").addEventListener("click", () => moveCookingStep(-1));
 $("nextCookingStepBtn").addEventListener("click", () => moveCookingStep(1));
-photoEl.addEventListener("change", () => {
-  if (recipeJsonEl.value.trim()) renderPreview();
-});
-restaurantPhotoEl.addEventListener("change", () => {
-  if (restaurantJsonEl.value.trim()) renderRestaurantPreview();
-});
 recipeListEl.addEventListener("click", handleRecipeListClick);
 recipeListEl.addEventListener("keydown", handleRecipeListKeydown);
 historyListEl.addEventListener("click", handleHistoryClick);
@@ -421,7 +413,6 @@ function routePastedJson(text, fallbackKind = "recipe") {
   if (kind === "recipe") {
     recipeJsonEl.value = text;
     restaurantJsonEl.value = "";
-    restaurantPhotoEl.value = "";
     hideRestaurantFeedback();
     if (currentView !== "add-recipe") showView("add-recipe");
     renderPreview();
@@ -430,7 +421,6 @@ function routePastedJson(text, fallbackKind = "recipe") {
   if (kind === "restaurant") {
     restaurantJsonEl.value = text;
     recipeJsonEl.value = "";
-    photoEl.value = "";
     hideRecipeFeedback();
     if (currentView !== "add-restaurant") showView("add-restaurant");
     renderRestaurantPreview();
@@ -702,7 +692,7 @@ function renderPreview() {
   }
 
   previewEl.classList.remove("hidden");
-  previewEl.innerHTML = `${selectedPhotoHtml()}${recipeHtml(result.recipe)}`;
+  previewEl.innerHTML = recipeHtml(result.recipe);
   setStatus("プレビューOK。内容に問題がなければ保存できます。");
 }
 
@@ -719,7 +709,7 @@ function renderRestaurantPreview() {
   }
 
   restaurantPreviewEl.classList.remove("hidden");
-  restaurantPreviewEl.innerHTML = `${selectedRestaurantPhotoHtml()}${restaurantHtml(result.restaurant)}`;
+  restaurantPreviewEl.innerHTML = restaurantHtml(result.restaurant);
   setStatus("プレビューOK。内容に問題がなければ保存できます。");
 }
 
@@ -732,20 +722,6 @@ function routePreviewByJsonKind(currentKind) {
   routePastedJson(raw, kind);
   setStatus(kind === "recipe" ? "Recipe JSONとして読み込みました。" : "Restaurant JSONとして読み込みました。");
   return true;
-}
-
-function selectedPhotoHtml() {
-  const file = photoEl.files[0];
-  if (!file) return "";
-  const url = URL.createObjectURL(file);
-  return `<img class="hero-photo" src="${escapeAttribute(url)}" alt="選択した写真">`;
-}
-
-function selectedRestaurantPhotoHtml() {
-  const file = restaurantPhotoEl.files[0];
-  if (!file) return "";
-  const url = URL.createObjectURL(file);
-  return `<img class="hero-photo" src="${escapeAttribute(url)}" alt="選択した写真">`;
 }
 
 function renderValidation(errors) {
@@ -785,15 +761,10 @@ async function saveRecipe() {
     setSaveBusy("recipe", true);
     setAppLoading(true, "レシピを保存しています...");
     setStatus("保存中...");
-    const photoBase64 = photoEl.files[0] ? await fileToDataUrl(photoEl.files[0]) : null;
     const body = {
       action: "saveRecipe",
       recipe: parsed.recipe,
-      photo: photoBase64 ? {
-        dataUrl: photoBase64,
-        name: photoEl.files[0].name,
-        type: photoEl.files[0].type
-      } : null
+      photo: null
     };
 
     const result = await submitSaveForm(endpoint, body);
@@ -824,15 +795,10 @@ async function saveRestaurant() {
     setSaveBusy("restaurant", true);
     setAppLoading(true, "お店を保存しています...");
     setStatus("保存中...");
-    const photoBase64 = restaurantPhotoEl.files[0] ? await fileToDataUrl(restaurantPhotoEl.files[0]) : null;
     const body = {
       action: "saveRestaurant",
       restaurant: parsed.restaurant,
-      photo: photoBase64 ? {
-        dataUrl: photoBase64,
-        name: restaurantPhotoEl.files[0].name,
-        type: restaurantPhotoEl.files[0].type
-      } : null
+      photo: null
     };
 
     const result = await submitSaveForm(endpoint, body);
@@ -961,7 +927,6 @@ function handleSaveReturn() {
   if (saved === "1" && restaurantId) {
     setStatus(`保存しました: ${restaurantId}`);
     restaurantJsonEl.value = "";
-    restaurantPhotoEl.value = "";
     restaurantPreviewEl.classList.add("hidden");
     restaurantValidationPanelEl.classList.add("hidden");
     window.setTimeout(async () => {
@@ -972,7 +937,6 @@ function handleSaveReturn() {
     const label = recipeId ? `${recipeId} / Ver.${version || ""}` : "保存しました";
     setStatus(`保存しました: ${label}`);
     recipeJsonEl.value = "";
-    photoEl.value = "";
     previewEl.classList.add("hidden");
     validationPanelEl.classList.add("hidden");
     sessionStorage.removeItem("recipeVaultPendingTitle");
@@ -990,7 +954,6 @@ async function completeRecipeSave(result) {
   const label = recipeId ? `${recipeId}${version ? ` / Ver.${version}` : ""}` : "保存しました";
   setStatus(`保存しました: ${label}`);
   recipeJsonEl.value = "";
-  photoEl.value = "";
   previewEl.classList.add("hidden");
   validationPanelEl.classList.add("hidden");
   sessionStorage.removeItem("recipeVaultPendingTitle");
@@ -1004,7 +967,6 @@ async function completeRestaurantSave(result) {
   const restaurantId = result.restaurant_id || "";
   setStatus(`保存しました: ${restaurantId || "飲食店"}`);
   restaurantJsonEl.value = "";
-  restaurantPhotoEl.value = "";
   restaurantPreviewEl.classList.add("hidden");
   restaurantValidationPanelEl.classList.add("hidden");
   await loadRestaurants();
@@ -1187,20 +1149,6 @@ function restaurantCardHtml(restaurant) {
   `;
 }
 
-function restaurantThumbHtml(restaurant) {
-  const name = restaurant.name || "飲食店";
-  const archiveNo = archiveNumber(restaurant.restaurant_id, "P");
-  if (!restaurant.image_url) {
-    return noImageHtml("RESTAURANT", "thumb", archiveNo);
-  }
-  return `
-    <div class="thumb-frame">
-      <img class="thumb" src="${escapeAttribute(restaurant.image_url)}" alt="${escapeAttribute(name)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("RESTAURANT", "thumb-fallback", archiveNo)}
-    </div>
-  `;
-}
-
 function restaurantCardMeta(restaurant) {
   return [restaurant.area, restaurant.genres].filter(Boolean).join(" / ") || "保存したお店";
 }
@@ -1240,32 +1188,6 @@ async function handleRestaurantListKeydown(event) {
   await openRestaurant(card.dataset.restaurantId);
 }
 
-function recipeThumbHtml(recipe) {
-  const title = recipe.title || "レシピ";
-  const archiveNo = archiveNumber(recipe.recipe_id, "R");
-  if (!recipe.image_url) {
-    return noImageHtml("RECIPE", "thumb", archiveNo);
-  }
-  return `
-    <div class="thumb-frame">
-      <img class="thumb" src="${escapeAttribute(recipe.image_url)}" alt="${escapeAttribute(title)}" loading="lazy" onerror="this.closest('.thumb-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel("RECIPE", "thumb-fallback", archiveNo)}
-    </div>
-  `;
-}
-
-function photoHeroHtml(imageUrl, title, archiveLabel = "RECIPE", archiveNo = "") {
-  if (!imageUrl) {
-    return noImageHtml(archiveLabel, "hero-photo", archiveNo || title || "");
-  }
-  return `
-    <div class="photo-hero-frame">
-      <img class="hero-photo" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(title || "レシピ写真")}" onerror="this.closest('.photo-hero-frame').classList.add('image-missing'); this.remove();">
-      ${noImageLabel(archiveLabel, "photo-fallback", archiveNo)}
-    </div>
-  `;
-}
-
 function textHeroHtml(kind, archiveNo, title, meta = "") {
   const initial = String(title || kind || "").trim().slice(0, 1).toUpperCase() || "R";
   return `
@@ -1278,15 +1200,6 @@ function textHeroHtml(kind, archiveNo, title, meta = "") {
       </div>
     </div>
   `;
-}
-
-function noImageHtml(label, className, archiveNo = "") {
-  const fallbackClass = className.includes("hero") ? "photo-fallback" : "thumb-fallback";
-  return `<div class="${escapeAttribute(className)} no-image" aria-hidden="true">${noImageLabel(label, fallbackClass, archiveNo)}</div>`;
-}
-
-function noImageLabel(label, className = "thumb-fallback", archiveNo = "") {
-  return `<span class="${escapeAttribute(className)}"><em>NO IMAGE</em>${archiveNo ? `<b>${escapeHtml(archiveNo)}</b>` : `<small>${escapeHtml(label)}</small>`}</span>`;
 }
 
 function archiveNumber(id, prefix = "R") {
@@ -1762,15 +1675,6 @@ async function requestJson(url, options) {
   } catch (error) {
     throw new Error(`サーバー応答をJSONとして読めませんでした。HTTP ${response.status}`);
   }
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("写真を読み込めませんでした。"));
-    reader.readAsDataURL(file);
-  });
 }
 
 function tagHtml(value, type = "") {

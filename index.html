@@ -27,7 +27,7 @@
         <div>
           <p class="eyebrow">Recipes</p>
           <h2>レシピ台帳</h2>
-          <p>保存したレシピを写真と料理名から探します。</p>
+          <p>保存したレシピを料理名・食材・タグから探します。</p>
         </div>
         <button id="reloadBtn" type="button" class="secondary-button">再読み込み</button>
       </div>
@@ -63,10 +63,6 @@
         <button id="previewBtn" type="button">JSONプレビュー</button>
       </div>
 
-      <label for="photo">写真</label>
-      <input id="photo" type="file" accept="image/*">
-      <p class="hint">写真はGoogle Driveへ保存されます。大きい画像は通信に時間がかかります。</p>
-
       <div id="validationPanel" class="message hidden"></div>
       <div id="preview" class="preview hidden"></div>
 
@@ -101,10 +97,6 @@
         <button id="pasteRestaurantBtn" type="button">クリップボードから貼り付け</button>
         <button id="previewRestaurantBtn" type="button">JSONプレビュー</button>
       </div>
-
-      <label for="restaurantPhoto">写真</label>
-      <input id="restaurantPhoto" type="file" accept="image/*">
-      <p class="hint">店舗写真や店で食べた料理写真を1枚保存できます。</p>
 
       <div id="restaurantValidationPanel" class="message hidden"></div>
       <div id="restaurantPreview" class="preview hidden"></div>

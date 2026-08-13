@@ -1,24 +1,30 @@
 :root {
   color-scheme: light;
 
-  --color-paper: #f8f3e9;
-  --color-paper-warm: #efe5d2;
+  --color-paper: #fff4e4;
+  --color-paper-warm: #f4dfbd;
   --color-surface: #fffaf0;
   --color-ink: #282018;
   --color-ink-soft: #5b4b3b;
   --color-muted: #8b7a66;
-  --color-line: #d5c4a8;
+  --color-line: #d9b98d;
   --color-line-soft: rgba(77, 58, 37, .16);
-  --color-red: #a43d2f;
-  --color-red-soft: #f7ded5;
-  --color-terracotta: #bd6842;
-  --color-terracotta-soft: #f5e2d5;
-  --color-olive: #485d3a;
-  --color-olive-soft: #e9eddf;
-  --color-sage: #748158;
-  --color-brass: #b5822d;
-  --color-saffron-soft: #f4d993;
-  --color-gold-soft: #f1dfb7;
+  --color-red: #ad3f34;
+  --color-red-soft: #f8d8cf;
+  --color-terracotta: #c75f36;
+  --color-terracotta-soft: #f6cfb8;
+  --color-olive: #466638;
+  --color-olive-soft: #dfe9c9;
+  --color-sage: #708c55;
+  --color-brass: #c28523;
+  --color-saffron-soft: #f7d46d;
+  --color-gold-soft: #f4dda4;
+  --color-citrus: #dd9e2f;
+  --color-citrus-soft: #fee2a5;
+  --color-herb: #2f7a55;
+  --color-herb-soft: #d7ead5;
+  --color-plum: #8b4c6a;
+  --color-plum-soft: #f0d3df;
   --color-danger: #b4332d;
 
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
@@ -74,7 +80,8 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
-  background: var(--color-paper);
+  background:
+    linear-gradient(180deg, rgba(255, 244, 228, 1) 0%, rgba(255, 250, 240, 1) 42%, rgba(250, 235, 209, 1) 100%);
   color: var(--color-ink);
   font-size: var(--text-md);
   line-height: 1.6;
@@ -198,8 +205,19 @@ h3 {
   margin: 0 auto;
   padding: env(safe-area-inset-top) var(--space-3) 0;
   border-bottom: 1px solid rgba(77, 58, 37, .08);
-  background: rgba(248, 243, 233, .94);
+  background: rgba(255, 244, 228, .94);
   backdrop-filter: blur(14px);
+}
+
+.app-header::after {
+  content: "";
+  position: absolute;
+  right: var(--space-4);
+  bottom: -1px;
+  left: var(--space-4);
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-terracotta), var(--color-citrus), var(--color-olive), var(--color-plum));
+  opacity: .72;
 }
 
 .app-header h1 {
@@ -473,7 +491,12 @@ h3 {
   grid-template-columns: 1fr auto;
   align-items: end;
   border-bottom: 0;
-  padding-bottom: 0;
+  border-left: 5px solid var(--color-terracotta);
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+}
+
+#placesSection > .section-head {
+  border-left-color: var(--color-olive);
 }
 
 #recipesSection > .section-head h2,
@@ -719,11 +742,15 @@ input[type="search"]:focus {
   gap: 14px;
   align-items: center;
   border-top: var(--border-hairline);
-  border-radius: 0;
-  padding: 15px 0;
-  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 15px 8px;
+  background: linear-gradient(90deg, rgba(255, 250, 240, .7), rgba(255, 250, 240, 0));
   cursor: pointer;
   transition: background-color .18s ease, transform .18s ease, opacity .28s ease;
+}
+
+.restaurant-card {
+  background: linear-gradient(90deg, rgba(223, 233, 201, .5), rgba(255, 250, 240, 0));
 }
 
 .recipe-item::after,
@@ -748,7 +775,7 @@ input[type="search"]:focus {
 
 .recipe-item:hover,
 .restaurant-card:hover {
-  background: rgba(255, 250, 240, .72);
+  background-color: rgba(255, 250, 240, .86);
 }
 
 .recipe-item h3,
@@ -774,10 +801,20 @@ input[type="search"]:focus {
 
 .ledger-number {
   align-self: start;
-  min-height: 38px;
-  border-left: 2px solid rgba(189, 104, 66, .45);
-  padding: 1px 0 0 8px;
-  color: #9a4b2f;
+  min-height: 32px;
+  border: 1px solid rgba(199, 95, 54, .22);
+  border-left: 4px solid var(--color-terracotta);
+  border-radius: var(--radius-xs);
+  padding: 6px 6px 5px;
+  background: var(--color-terracotta-soft);
+  color: #883a22;
+}
+
+.restaurant-card .ledger-number {
+  border-color: rgba(70, 102, 56, .22);
+  border-left-color: var(--color-olive);
+  background: var(--color-olive-soft);
+  color: #314d28;
 }
 
 .recipe-item:focus-visible,
@@ -957,9 +994,17 @@ input[type="search"]:focus {
   display: grid;
   min-height: 190px;
   overflow: hidden;
-  border-top: 1px solid rgba(77, 58, 37, .14);
-  border-bottom: 1px solid rgba(77, 58, 37, .14);
-  padding: var(--space-6) 0 var(--space-5);
+  border: 1px solid rgba(199, 95, 54, .16);
+  border-radius: var(--radius-md);
+  padding: var(--space-6) var(--space-3) var(--space-5);
+  background:
+    linear-gradient(135deg, rgba(254, 226, 165, .52), rgba(248, 216, 207, .42) 54%, rgba(255, 250, 240, .92));
+}
+
+.text-hero.place-hero {
+  border-color: rgba(70, 102, 56, .16);
+  background:
+    linear-gradient(135deg, rgba(223, 233, 201, .68), rgba(215, 234, 213, .42) 54%, rgba(255, 250, 240, .92));
 }
 
 .text-hero::before {
@@ -1195,6 +1240,24 @@ input[type="search"]:focus {
   overflow-wrap: anywhere;
 }
 
+.tag:nth-child(3n + 1),
+.filter-chip:nth-child(3n + 1) {
+  background: var(--color-herb-soft);
+  color: var(--color-herb);
+}
+
+.tag:nth-child(3n + 2),
+.filter-chip:nth-child(3n + 2) {
+  background: var(--color-citrus-soft);
+  color: #8a5a10;
+}
+
+.tag:nth-child(3n),
+.filter-chip:nth-child(3n) {
+  background: var(--color-plum-soft);
+  color: var(--color-plum);
+}
+
 .recipe-item .tags,
 .restaurant-card .tags {
   flex-wrap: nowrap;
@@ -1215,6 +1278,11 @@ input[type="search"]:focus {
 .filter-chip.is-selected {
   background: rgba(189, 104, 66, .16);
   color: #9a4b2f;
+}
+
+.filter-chip.is-selected {
+  border: 1px solid rgba(173, 63, 52, .18);
+  box-shadow: 0 4px 12px rgba(173, 63, 52, .08);
 }
 
 .history-item {

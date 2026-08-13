@@ -12,7 +12,7 @@ Food Platformは、個人で作った料理・レシピ、行きたい店、ま�
 - ChatGPT Plusを手動で利用する
 - ChatGPTが出力したJSONをアプリへ貼り付ける
 - レシピはGoogle Sheetsへ保存する
-- 写真はGoogle Driveへ保存する
+- 登録はJSON貼り付けを中心にする
 - フロントエンドはGitHub Pagesで公開する
 - 外部有料サービスは追加しない
 
@@ -25,9 +25,8 @@ Food Platformは、個人で作った料理・レシピ、行きたい店、ま�
 3. JSONをクリップボードへコピーする
 4. Food Platformを開く
 5. JSONを貼り付ける
-6. 必要なら料理写真を選択する
-7. プレビューを確認する
-8. 保存する
+6. プレビューを確認する
+7. 保存する
 
 既存レシピの改善:
 
@@ -45,7 +44,7 @@ Food Platformは、個人で作った料理・レシピ、行きたい店、ま�
 - 使用技術: HTML / CSS / JavaScript
 - バックエンド: Google Apps Script
 - レシピ保存: Google Sheets
-- 写真保存: Google Drive
+- 写真保存: 現在の標準UIでは使用しない
 - AI: ChatGPT Plusを手動利用
 - OpenAI API: 使用しない
 
@@ -59,10 +58,10 @@ Google Drive写真フォルダ:
 
 - `Recipe Photos`
 
-実際のIDは環境ごとに異なるため、ソースコードへ固定値は埋め込みません。GASのScript Propertiesで以下を設定します。
+現在の標準UIでは写真アップロードを使わないため、Driveフォルダ設定は任意です。実際のIDは環境ごとに異なるため、ソースコードへ固定値は埋め込みません。GASのScript Propertiesで以下を設定します。
 
 - `SPREADSHEET_ID`
-- `DRIVE_FOLDER_ID`
+- `DRIVE_FOLDER_ID` 任意
 
 ## 保存用JSON仕様
 
@@ -136,7 +135,6 @@ Google Drive写真フォルダ:
 
 - GPT出力JSON貼り付け欄
 - クリップボードから貼り付け
-- 写真選択
 - プレビュー
 - 保存
 
@@ -149,7 +147,6 @@ Google Drive写真フォルダ:
 表示項目:
 
 - 料理名
-- 写真
 - 人数
 - 調理時間
 - 材料
@@ -267,9 +264,8 @@ Recipe / Restaurant API:
 1. 下部ナビの `＋` を押す
 2. `飲食店` を選ぶ
 3. Restaurant JSONを貼り付ける
-4. 必要なら写真を選ぶ
-5. プレビューを確認する
-6. 保存する
+4. プレビューを確認する
+5. 保存する
 
 お店詳細では以下を1タップで更新できます。
 
@@ -324,11 +320,7 @@ Restaurant検索対象:
 
 ## 写真保存
 
-写真はGoogle Driveの `Recipe Photos` フォルダへ保存します。Google Sheetsには写真本体ではなくDrive File IDを保存します。
-
-iPhoneの写真選択を想定し、`image/*` を受け付けます。HEIC/HEIFもDriveへ保存できます。ただしブラウザやDriveの表示仕様により、HEIC画像がWeb上で直接プレビュー表示されない場合があります。その場合はiPhone側でJPEGとして共有・保存した写真を使ってください。
-
-写真ファイルはGitHub Pagesから表示できるよう、GAS保存時に「リンクを知っている全員が閲覧可」に設定されます。
+現在の標準UIでは、登録負荷を下げるため写真アップロードは表示していません。GAS側にはDrive保存処理が残っていますが、通常の保存リクエストでは写真データを送信しません。
 
 ## 検索
 
@@ -379,13 +371,12 @@ iPhoneの写真選択を想定し、`image/*` を受け付けます。HEIC/HEIF�
 ## Google Apps Script導入
 
 1. Google Sheetsで `Recipe DB` を作成する
-2. Google Driveで `Recipe Photos` フォルダを作成する
-3. Apps Scriptプロジェクトを作成する
-4. `gas/Code.gs` の内容を貼り付ける
-5. Apps ScriptのScript Propertiesへ以下を設定する
+2. Apps Scriptプロジェクトを作成する
+3. `gas/Code.gs` の内容を貼り付ける
+4. Apps ScriptのScript Propertiesへ以下を設定する
    - `SPREADSHEET_ID`: `Recipe DB` のSpreadsheet ID
-   - `DRIVE_FOLDER_ID`: `Recipe Photos` のFolder ID
-6. Webアプリとしてデプロイする
+   - `DRIVE_FOLDER_ID`: 任意。写真アップロードを再利用する場合のみ設定
+5. Webアプリとしてデプロイする
    - 実行ユーザー: 自分
    - アクセスできるユーザー: 全員
 7. 初回実行時にGoogleの権限許可を行う
@@ -434,10 +425,10 @@ window.APP_CONFIG = {
 本人のGoogleアカウント権限が必要なため、以下は手動です。
 
 - Google Sheetsで `Recipe DB` を作成する
-- Google Driveで `Recipe Photos` フォルダを作成する
 - Apps Scriptプロジェクトを作成する
 - `gas/Code.gs` を貼り付ける
-- `SPREADSHEET_ID` と `DRIVE_FOLDER_ID` を設定する
+- `SPREADSHEET_ID` を設定する
+- `DRIVE_FOLDER_ID` は写真アップロードを再利用する場合のみ設定する
 - GAS Web Appをデプロイし、初回権限許可を行う
 - GAS Web App URLを `config.js` に設定する
 - GitHub Pagesを有効化する

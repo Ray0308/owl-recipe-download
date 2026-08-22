@@ -121,6 +121,8 @@ const restaurantPreviewEl = $("restaurantPreview");
 const restaurantValidationPanelEl = $("restaurantValidationPanel");
 const placesSectionEl = $("placesSection");
 const restaurantListEl = $("restaurantList");
+const recipeCountEl = $("recipeCount");
+const restaurantCountEl = $("restaurantCount");
 const restaurantDetailCardEl = $("restaurantDetailCard");
 const restaurantDetailTitleEl = $("restaurantDetailTitle");
 const restaurantDetailMetaEl = $("restaurantDetailMeta");
@@ -1075,6 +1077,7 @@ function renderRecipeList() {
     ? filtered.map(recipeCardHtml).join("")
     : `<p class="empty">該当するレシピはありません。</p>`;
 
+  recipeCountEl.textContent = `${filtered.length}件`;
   recipeListEl.innerHTML = markup;
   animateLedgerRows(recipeListEl);
 }
@@ -1119,6 +1122,7 @@ function renderRestaurantLists() {
   restaurantListEl.innerHTML = filtered.length
     ? filtered.map(restaurantCardHtml).join("")
     : `<p class="empty">保存済みのお店はまだありません。</p>`;
+  restaurantCountEl.textContent = `${filtered.length}件`;
   animateLedgerRows(restaurantListEl);
 }
 
